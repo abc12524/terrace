@@ -77,18 +77,15 @@ class ZvecService {
       final existingDim = vectorField?.dimension ?? 0;
       final hasPath = schema.hasField('path');
       schema.destroy();
-      if (existingDim != 0 && existingDim != _dimension) {
-        // 维度不匹配（如换了 embedding 模型），重建集合
-        coll.close();
-        final dbDir = Directory(path);
-        if (dbDir.existsSync()) dbDir.deleteSync(recursive: true);
-      } else {
-        // 旧集合补 path 列（此前 schema 未定义 path 字段导致写入被拒）
-        if (!hasPath) {
-          coll.addColumn(FieldSchema(name: 'path', dataType: DataType.string));
-        }
+      if (existingDim != 0 && existingDim == _dimension && hasPath) {
         return coll;
       }
+      // 维度不匹配，或旧集合缺 path 字段（此前的 schema 未定义 path，
+      // addColumn 在 native 层不可靠）：直接重建集合。旧集合无有效数据，
+      // 重建零损失。
+      coll.close();
+      final dbDir = Directory(path);
+      if (dbDir.existsSync()) dbDir.deleteSync(recursive: true);
     } catch (_) {
       // 集合尚不存在，走创建分支
     }
