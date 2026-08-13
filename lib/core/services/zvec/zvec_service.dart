@@ -7,17 +7,17 @@ import 'package:zvec/zvec.dart';
 
 import 'embedding_service.dart';
 
-/// 一条向量搜索命中的记忆。
+/// 一条向量搜索命中的记忆（snippet 为全文前 200 字符）。
 class ZvecMemoryHit {
   final String pk;
   final double score;
-  final String content;
+  final String snippet;
   final String? title;
   final String? category;
   const ZvecMemoryHit({
     required this.pk,
     required this.score,
-    required this.content,
+    required this.snippet,
     this.title,
     this.category,
   });
@@ -48,6 +48,7 @@ class ZvecService {
 
   Collection? _collection;
   String? _pkIndexPath;
+  String? _filesRoot;
   int _dimension = 0;
 
   bool get isReady => _collection != null;
@@ -60,6 +61,9 @@ class ZvecService {
     final dir = Directory('${support.path}/zvec');
     if (!dir.existsSync()) dir.createSync(recursive: true);
     _pkIndexPath = '${dir.path}/pks.json';
+    _filesRoot = '${dir.path}/files';
+    final filesDir = Directory(_filesRoot!);
+    if (!filesDir.existsSync()) filesDir.createSync(recursive: true);
     _dimension = embedding.dimension;
     _collection = _openOrCreate('${dir.path}/memories');
   }
@@ -123,7 +127,7 @@ class ZvecService {
           ZvecMemoryHit(
             pk: doc.pk ?? '',
             score: score,
-            content: doc.getString('content') ?? '',
+            snippet: _snippet(doc.getString('content') ?? ''),
             title: doc.getString('title'),
             category: doc.getString('category'),
           ),
@@ -137,16 +141,38 @@ class ZvecService {
   }
 
   /// 保存一条记忆（按 pk upsert，已存在则覆盖）。
+  ///
+  /// 全文写入本地 md 文件 `{files}/{pk}`，同时向量化存入 zvec 供检索。
+  /// [content] 与 [sourcePath] 二选一：传 [sourcePath] 时直接从设备文件读取
+  /// 内容做向量化（content 可省略）。
   Future<String> remember({
     required String pk,
-    required String content,
+    String? content,
+    String? sourcePath,
     String? title,
     String? category,
   }) async {
     await ensureInitialized();
-    final vec = await embedding.embed(content);
+    String resolvedContent;
+    if (sourcePath != null && sourcePath.isNotEmpty) {
+      final src = File(sourcePath);
+      if (!src.existsSync()) {
+        throw ZvecException('源文件不存在: $sourcePath');
+      }
+      resolvedContent = src.readAsStringSync();
+    } else if (content != null && content.isNotEmpty) {
+      resolvedContent = content;
+    } else {
+      throw const ZvecException('必须提供 content 或 sourcePath 其中之一');
+    }
+    // 先向量化，失败则不落盘
+    final vec = await embedding.embed(resolvedContent);
+    final file = File('${_filesRoot!}/$pk');
+    file.parent.createSync(recursive: true);
+    file.writeAsStringSync(resolvedContent);
+
     final doc = Doc(id: pk)
-      ..setField('content', content)
+      ..setField('content', resolvedContent)
       ..setVector('embedding', Float32List.fromList(vec));
     if (title != null && title.isNotEmpty) doc.setField('title', title);
     if (category != null && category.isNotEmpty) {
@@ -168,9 +194,24 @@ class ZvecService {
     return pk;
   }
 
-  /// 按主键读取单条记忆。
+  /// 按主键（文件相对路径，如 `preferences/deepseek余额.md`）读取全文。
   Future<ZvecMemoryRecord?> read(String pk) async {
     await ensureInitialized();
+    final file = File('${_filesRoot!}/$pk');
+    if (file.existsSync()) {
+      final parts = pk.split('/');
+      final category = parts.length >= 2 ? parts.first : null;
+      final title = parts.isNotEmpty
+          ? parts.last.replaceFirst(RegExp(r'\.md$'), '')
+          : null;
+      return ZvecMemoryRecord(
+        pk: pk,
+        content: file.readAsStringSync(),
+        title: title,
+        category: category,
+      );
+    }
+    // 兜底：从 zvec 集合读取
     final docs = _collection!.fetch([pk], includeVector: false);
     if (docs.isEmpty) return null;
     final doc = docs.first;
@@ -210,14 +251,16 @@ class ZvecService {
     return records.take(limit).toList();
   }
 
-  /// 删除一条记忆。
+  /// 删除一条记忆（同时删除本地 md 文件）。
   Future<void> delete(String pk) async {
     await ensureInitialized();
     _collection!.delete([pk]);
+    final file = File('${_filesRoot!}/$pk');
+    if (file.existsSync()) file.deleteSync();
     _removePk(pk);
   }
 
-  /// 清空全部记忆。
+  /// 清空全部记忆（同时清空本地文件目录）。
   Future<void> clear() async {
     await ensureInitialized();
     final pks = _loadPks();
@@ -225,7 +268,17 @@ class ZvecService {
     for (var i = 0; i < pks.length; i += chunkSize) {
       _collection!.delete(pks.skip(i).take(chunkSize).toList());
     }
+    final filesDir = Directory(_filesRoot!);
+    if (filesDir.existsSync()) filesDir.deleteSync(recursive: true);
+    filesDir.createSync(recursive: true);
     _savePks([]);
+  }
+
+  /// 截断为前 200 字符的摘要（与命中展示一致）。
+  String _snippet(String content) {
+    const maxLen = 200;
+    if (content.length <= maxLen) return content;
+    return content.substring(0, maxLen);
   }
 
   /// 关闭集合，释放原生资源。

@@ -603,7 +603,8 @@ class ToolHandlerService {
         'type': 'function',
         'function': {
           'name': 'zvec_remember',
-          'description': '将重要信息保存到本地向量记忆中，以便后续对话回忆。适合保存：用户偏好、项目配置、关键决策、有用的操作经验',
+          'description':
+              '将重要信息保存到本地向量记忆中，以便后续对话回忆。content 与 path 二选一：传 path 时直接读取设备上该文件的内容做向量化保存（适合保存文件全文）；适合保存用户偏好、项目配置、关键决策、操作经验',
           'parameters': {
             'type': 'object',
             'properties': {
@@ -616,10 +617,14 @@ class ToolHandlerService {
               'name': {'type': 'string', 'description': '记忆名称/主题'},
               'content': {
                 'type': 'string',
-                'description': '要保存的内容（Markdown 格式）',
+                'description': '要保存的内容（Markdown 格式）。与 path 二选一',
+              },
+              'path': {
+                'type': 'string',
+                'description': '设备上文件的绝对路径，提供时直接从该文件读取内容保存。与 content 二选一',
               },
             },
-            'required': ['category', 'name', 'content'],
+            'required': ['category', 'name'],
           },
         },
       },
@@ -627,13 +632,13 @@ class ToolHandlerService {
         'type': 'function',
         'function': {
           'name': 'zvec_read',
-          'description': '通过主键读取本地记忆中的单条记录',
+          'description': '按文件路径读取本地记忆中的单条记录全文（路径形如 memories/preferences/主题.md）',
           'parameters': {
             'type': 'object',
             'properties': {
               'pk': {
                 'type': 'string',
-                'description': '记忆的主键，如 memories/preferences/主题',
+                'description': '记忆的文件路径，如 preferences/主题.md',
               },
             },
             'required': ['pk'],
@@ -658,11 +663,14 @@ class ToolHandlerService {
         'type': 'function',
         'function': {
           'name': 'zvec_delete',
-          'description': '按主键删除本地记忆中的一条记录。注意：此操作不可撤销！',
+          'description': '按文件路径删除本地记忆中的一条记录。注意：此操作不可撤销！',
           'parameters': {
             'type': 'object',
             'properties': {
-              'pk': {'type': 'string', 'description': '要删除的记忆主键'},
+              'pk': {
+                'type': 'string',
+                'description': '要删除的记忆文件路径，如 preferences/主题.md',
+              },
             },
             'required': ['pk'],
           },
@@ -733,9 +741,9 @@ class ToolHandlerService {
           'results': hits
               .map(
                 (h) => {
-                  'pk': h.pk,
+                  'path': h.pk,
                   'score': h.score,
-                  'snippet': h.content,
+                  'snippet': h.snippet,
                   'category': h.category ?? '',
                 },
               )
@@ -747,17 +755,19 @@ class ToolHandlerService {
         final category = (args['category'] ?? 'entities').toString().trim();
         final title = (args['name'] ?? 'untitled').toString().trim();
         final content = (args['content'] ?? '').toString().trim();
-        if (content.isEmpty) {
-          return jsonEncode({'error': 'content is required'});
+        final sourcePath = (args['path'] ?? '').toString().trim();
+        if (content.isEmpty && sourcePath.isEmpty) {
+          return jsonEncode({'error': 'content 与 path 至少提供一个'});
         }
-        final pk = 'memories/$category/${_slug(title)}';
+        final pk = '$category/${_slug(title)}.md';
         await svc.remember(
           pk: pk,
-          content: content,
+          content: content.isEmpty ? null : content,
+          sourcePath: sourcePath.isEmpty ? null : sourcePath,
           title: title,
           category: category,
         );
-        return jsonEncode({'success': true, 'pk': pk});
+        return jsonEncode({'success': true, 'path': pk});
       }
 
       if (name == 'zvec_read') {
@@ -767,7 +777,7 @@ class ToolHandlerService {
         if (rec == null) return jsonEncode({'error': '未找到记录: $pk'});
         return jsonEncode({
           'success': true,
-          'pk': rec.pk,
+          'path': rec.pk,
           'title': rec.title,
           'category': rec.category,
           'content': rec.content,
@@ -783,7 +793,7 @@ class ToolHandlerService {
           'results': records
               .map(
                 (r) => {
-                  'pk': r.pk,
+                  'path': r.pk,
                   'title': r.title ?? '',
                   'category': r.category ?? '',
                   'snippet': r.content.length > 100
@@ -799,7 +809,7 @@ class ToolHandlerService {
         final pk = (args['pk'] ?? '').toString().trim();
         if (pk.isEmpty) return jsonEncode({'error': 'pk is required'});
         await svc.delete(pk);
-        return jsonEncode({'success': true, 'pk': pk});
+        return jsonEncode({'success': true, 'path': pk});
       }
 
       if (name == 'zvec_clear') {

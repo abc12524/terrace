@@ -200,7 +200,7 @@ class MessageGenerationService {
             final zvecCtx = hits
                 .map(
                   (h) =>
-                      '> 📚 [${h.pk}] (${h.score.toStringAsFixed(2)})\n  ${h.content}',
+                      '> 📚 [${h.pk}] (${h.score.toStringAsFixed(2)})\n  ${h.snippet}',
                 )
                 .join('\n');
             // Insert as user-role message after the user's actual message
