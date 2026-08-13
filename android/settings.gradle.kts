@@ -14,9 +14,9 @@ pluginManagement {
         maven { url = uri("https://maven.aliyun.com/repository/central") }
         maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
         maven { url = uri("https://mirrors.cloud.tencent.com/nexus/repository/maven-public/") }
+        // 避免 fallback 到 mavenCentral()/gradlePluginPortal() 触发 429 限流，
+        // 全部依赖走国内镜像；google() 兜底 AGP 相关（dl.google.com）
         google()
-        mavenCentral()
-        gradlePluginPortal()
     }
 }
 
