@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:zvec/zvec.dart';
 
@@ -92,12 +93,17 @@ class ZvecService {
           dataType: DataType.string,
           nullable: false,
         ),
+        FieldSchema(name: 'path', dataType: DataType.string),
         FieldSchema(name: 'title', dataType: DataType.string),
         FieldSchema(name: 'category', dataType: DataType.string),
       ],
     );
     return Collection.createAndOpen(path, schema);
   }
+
+  /// zvec 主键要求字符集受限（不允许 `/`、`.` 等），用文件路径的
+  /// SHA-256 十六进制作为内部主键；文件路径保存在 doc 的 `path` 字段。
+  String _hashPk(String path) => sha256.convert(utf8.encode(path)).toString();
 
   /// 语义搜索，按 [scoreThreshold] 过滤相似度低于阈值的命中。
   Future<List<ZvecMemoryHit>> search(
@@ -112,7 +118,7 @@ class ZvecService {
       fieldName: 'embedding',
       vector: Float32List.fromList(vec),
       topk: limit,
-      outputFields: ['content', 'title', 'category'],
+      outputFields: ['content', 'path', 'title', 'category'],
     );
     try {
       final results = _collection!.query(q);
@@ -125,7 +131,7 @@ class ZvecService {
         }
         hits.add(
           ZvecMemoryHit(
-            pk: doc.pk ?? '',
+            pk: doc.getString('path') ?? doc.pk ?? '',
             score: score,
             snippet: _snippet(doc.getString('content') ?? ''),
             title: doc.getString('title'),
@@ -171,8 +177,9 @@ class ZvecService {
     file.parent.createSync(recursive: true);
     file.writeAsStringSync(resolvedContent);
 
-    final doc = Doc(id: pk)
+    final doc = Doc(id: _hashPk(pk))
       ..setField('content', resolvedContent)
+      ..setField('path', pk)
       ..setVector('embedding', Float32List.fromList(vec));
     if (title != null && title.isNotEmpty) doc.setField('title', title);
     if (category != null && category.isNotEmpty) {
@@ -212,12 +219,12 @@ class ZvecService {
       );
     }
     // 兜底：从 zvec 集合读取
-    final docs = _collection!.fetch([pk], includeVector: false);
+    final docs = _collection!.fetch([_hashPk(pk)], includeVector: false);
     if (docs.isEmpty) return null;
     final doc = docs.first;
     try {
       return ZvecMemoryRecord(
-        pk: doc.pk ?? pk,
+        pk: doc.getString('path') ?? pk,
         content: doc.getString('content') ?? '',
         title: doc.getString('title'),
         category: doc.getString('category'),
@@ -235,11 +242,14 @@ class ZvecService {
     const chunkSize = 50;
     for (var i = 0; i < pks.length && records.length < limit; i += chunkSize) {
       final chunk = pks.skip(i).take(chunkSize).toList();
-      final docs = _collection!.fetch(chunk, includeVector: false);
+      final docs = _collection!.fetch(
+        chunk.map(_hashPk).toList(),
+        includeVector: false,
+      );
       for (final doc in docs) {
         records.add(
           ZvecMemoryRecord(
-            pk: doc.pk ?? '',
+            pk: doc.getString('path') ?? doc.pk ?? '',
             content: doc.getString('content') ?? '',
             title: doc.getString('title'),
             category: doc.getString('category'),
@@ -254,7 +264,7 @@ class ZvecService {
   /// 删除一条记忆（同时删除本地 md 文件）。
   Future<void> delete(String pk) async {
     await ensureInitialized();
-    _collection!.delete([pk]);
+    _collection!.delete([_hashPk(pk)]);
     final file = File('${_filesRoot!}/$pk');
     if (file.existsSync()) file.deleteSync();
     _removePk(pk);
@@ -266,7 +276,7 @@ class ZvecService {
     final pks = _loadPks();
     const chunkSize = 50;
     for (var i = 0; i < pks.length; i += chunkSize) {
-      _collection!.delete(pks.skip(i).take(chunkSize).toList());
+      _collection!.delete(pks.skip(i).take(chunkSize).map(_hashPk).toList());
     }
     final filesDir = Directory(_filesRoot!);
     if (filesDir.existsSync()) filesDir.deleteSync(recursive: true);
