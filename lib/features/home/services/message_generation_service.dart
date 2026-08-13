@@ -18,7 +18,7 @@ import '../controllers/generation_controller.dart';
 import 'ask_user_interaction_service.dart';
 import 'message_builder_service.dart';
 import 'tool_approval_service.dart';
-import '../../../core/providers/openviking_provider.dart';
+import '../../../core/providers/zvec_provider.dart';
 
 /// Callback types for UI updates from MessageGenerationService
 typedef OnMessagesChanged = void Function();
@@ -125,6 +125,7 @@ class MessageGenerationService {
     AskUserInteractionService? askUserService,
   }) async {
     final cfg = settings.getProviderConfig(providerKey);
+    final zvecProvider = contextProvider.read<ZvecProvider>();
     final kind = ProviderConfig.classify(
       providerKey,
       explicitType: cfg.providerType,
@@ -179,9 +180,8 @@ class MessageGenerationService {
       providerKey,
       modelId,
     );
-    // Inject OpenViking memory context (aligned with Android-agent)
-    final ovProvider = contextProvider.read<OpenVikingProvider>();
-    if (ovProvider.isConfigured && ovProvider.displayCount > 0) {
+    // Inject local zvec memory context (semantic search over local vector store)
+    if (zvecProvider.isConfigured && zvecProvider.displayCount > 0) {
       try {
         final latestUserMsg = apiMessages.lastWhere(
           (m) => m['role'] == 'user' || m['role'] == 'USER',
@@ -189,29 +189,37 @@ class MessageGenerationService {
         );
         final userText = (latestUserMsg['content'] as String?) ?? '';
         if (userText.isNotEmpty) {
-          final ovCtx = await ovProvider.service!.loadContext(
-            userText,
-            scoreThreshold: ovProvider.threshold,
-            displayCount: ovProvider.displayCount,
-          );
-          if (ovCtx.isNotEmpty) {
-            // Insert as user-role message (like Android-agent) after the user's actual message
-            final ovMsg = <String, dynamic>{
+          final hits = await zvecProvider.service!
+              .search(
+                userText,
+                scoreThreshold: zvecProvider.threshold,
+                limit: zvecProvider.displayCount,
+              )
+              .timeout(const Duration(seconds: 20));
+          if (hits.isNotEmpty) {
+            final zvecCtx = hits
+                .map(
+                  (h) =>
+                      '> 📚 [${h.pk}] (${h.score.toStringAsFixed(2)})\n  ${h.content}',
+                )
+                .join('\n');
+            // Insert as user-role message after the user's actual message
+            final zvecMsg = <String, dynamic>{
               'role': 'user',
-              'content': '系统提示：\n$ovCtx',
+              'content': '系统提示：\n$zvecCtx',
             };
             final userIdx = apiMessages.lastIndexWhere(
               (m) => m['role'] == 'user' || m['role'] == 'USER',
             );
             if (userIdx >= 0) {
-              apiMessages.insert(userIdx + 1, ovMsg);
+              apiMessages.insert(userIdx + 1, zvecMsg);
             } else {
-              apiMessages.insert(0, ovMsg);
+              apiMessages.insert(0, zvecMsg);
             }
           }
         }
       } catch (_) {
-        // OpenViking context injection failed silently
+        // zvec context injection failed silently
       }
     }
 

@@ -69,3 +69,7 @@ release-assets/
 # CI signing (generated at build time)
 ci-keystore.jks
 key.properties
+
+# zvec vendored native lib unpack artifacts (repo source = dependencies/zvec/vendor/*.zip)
+/dependencies/zvec/android/src/main/jniLibs/
+/dependencies/zvec/ios/zvec.framework/

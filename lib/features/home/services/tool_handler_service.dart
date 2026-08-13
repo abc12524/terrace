@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/widgets.dart';
-import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/providers/assistant_provider.dart';
@@ -12,8 +11,8 @@ import '../../../core/providers/settings_provider.dart';
 import '../../../core/providers/tts_provider.dart';
 import '../../../core/services/api/chat_api_service.dart';
 import '../../../core/services/mcp/mcp_tool_service.dart';
-import '../../../core/services/openviking/openviking_service.dart';
-import '../../../core/providers/openviking_provider.dart';
+import '../../../core/services/zvec/zvec_service.dart';
+import '../../../core/providers/zvec_provider.dart';
 import '../../../core/services/search/search_tool_service.dart';
 import 'ask_user_interaction_service.dart';
 import '../../../core/services/device_tools_service.dart';
@@ -210,11 +209,11 @@ class ToolHandlerService {
     toolDefs.addAll(mcpTools);
     toolDefs.addAll(DeviceToolsService.getToolDefinitions());
 
-    // OpenViking tools (when configured)
+    // Local zvec memory tools (when configured)
     if (supportsTools) {
-      final ovProvider = contextProvider.read<OpenVikingProvider>();
-      if (ovProvider.isConfigured) {
-        toolDefs.addAll(_buildOvToolDefinitions());
+      final zvecProvider = contextProvider.read<ZvecProvider>();
+      if (zvecProvider.isConfigured) {
+        toolDefs.addAll(_buildZvecToolDefinitions());
       }
     }
 
@@ -405,10 +404,10 @@ class ToolHandlerService {
           return localResult;
         }
 
-        // OpenViking tools (must be before DeviceTools to prevent MethodChannel fallthrough)
+        // Local zvec memory tools (must be before DeviceTools to prevent MethodChannel fallthrough)
         try {
-          final ovResult = await _handleOvToolCall(name, args);
-          if (ovResult != null) return ovResult;
+          final zvecResult = await _handleZvecToolCall(name, args);
+          if (zvecResult != null) return zvecResult;
         } catch (_) {}
 
         // Device tools (GPS, sensor, shell, SSH, etc.)
@@ -578,18 +577,23 @@ class ToolHandlerService {
     return null;
   }
 
-  /// Build OpenViking tool definitions. (Aligned with Android-agent reference)
-  static List<Map<String, dynamic>> _buildOvToolDefinitions() {
+  /// Build local zvec memory tool definitions.
+  static List<Map<String, dynamic>> _buildZvecToolDefinitions() {
     return [
       {
         'type': 'function',
         'function': {
-          'name': 'openviking_search',
-          'description': '在 OpenViking 外置记忆中语义搜索，查找之前保存的知识、偏好、项目信息等',
+          'name': 'zvec_search',
+          'description': '在本地向量记忆中语义搜索，查找之前保存的知识、偏好、项目信息等',
           'parameters': {
             'type': 'object',
             'properties': {
               'query': {'type': 'string', 'description': '搜索关键词，描述要查找什么内容'},
+              'score_threshold': {
+                'type': 'number',
+                'description': '相似度阈值（0-1，越大越严格，默认用设置值）',
+              },
+              'limit': {'type': 'integer', 'description': '返回条数（1-10，默认用设置值）'},
             },
             'required': ['query'],
           },
@@ -598,18 +602,22 @@ class ToolHandlerService {
       {
         'type': 'function',
         'function': {
-          'name': 'openviking_remember',
-          'description': '将重要信息保存到 OpenViking 外置记忆中，以便后续对话回忆。适合保存：用户偏好、项目配置、关键决策、有用的操作经验',
+          'name': 'zvec_remember',
+          'description': '将重要信息保存到本地向量记忆中，以便后续对话回忆。适合保存：用户偏好、项目配置、关键决策、有用的操作经验',
           'parameters': {
             'type': 'object',
             'properties': {
               'category': {
                 'type': 'string',
                 'enum': ['preferences', 'entities', 'events', 'experiences'],
-                'description': '记忆分类：preferences=用户偏好, entities=项目/概念/人物, events=决策/里程碑, experiences=操作经验',
+                'description':
+                    '记忆分类：preferences=用户偏好, entities=项目/概念/人物, events=决策/里程碑, experiences=操作经验',
               },
               'name': {'type': 'string', 'description': '记忆名称/主题'},
-              'content': {'type': 'string', 'description': '要保存的内容（Markdown 格式）'},
+              'content': {
+                'type': 'string',
+                'description': '要保存的内容（Markdown 格式）',
+              },
             },
             'required': ['category', 'name', 'content'],
           },
@@ -618,75 +626,29 @@ class ToolHandlerService {
       {
         'type': 'function',
         'function': {
-          'name': 'openviking_read',
-          'description': '通过 URI 读取 OpenViking 记忆中的单个文件内容。URI 格式: viking://user/{user}/...',
+          'name': 'zvec_read',
+          'description': '通过主键读取本地记忆中的单条记录',
           'parameters': {
             'type': 'object',
             'properties': {
-              'uri': {'type': 'string', 'description': '文件的完整 URI'},
-            },
-            'required': ['uri'],
-          },
-        },
-      },
-      {
-        'type': 'function',
-        'function': {
-          'name': 'openviking_list_dir',
-          'description': '列出 OpenViking 指定目录下的所有文件和子目录，用于探索记忆结构或查找特定文件',
-          'parameters': {
-            'type': 'object',
-            'properties': {
-              'uri': {'type': 'string', 'description': '目录 URI'},
-              'recursive': {'type': 'boolean', 'description': '是否递归列出子目录（默认 false）'},
-            },
-            'required': ['uri'],
-          },
-        },
-      },
-      {
-        'type': 'function',
-        'function': {
-          'name': 'openviking_write_file',
-          'description': '写入内容到 OpenViking 记忆文件。支持三种模式：create=创建新文件, replace=覆盖已有文件, append=追加内容',
-          'parameters': {
-            'type': 'object',
-            'properties': {
-              'uri': {'type': 'string', 'description': '文件 URI'},
-              'content': {'type': 'string', 'description': '要写入的内容（Markdown 格式）'},
-              'mode': {
+              'pk': {
                 'type': 'string',
-                'enum': ['create', 'replace', 'append'],
-                'description': '写入模式',
+                'description': '记忆的主键，如 memories/preferences/主题',
               },
             },
-            'required': ['uri', 'content', 'mode'],
+            'required': ['pk'],
           },
         },
       },
       {
         'type': 'function',
         'function': {
-          'name': 'openviking_delete_file',
-          'description': '通过 URI 删除 OpenViking 记忆中的文件。注意：此操作不可撤销！',
+          'name': 'zvec_list',
+          'description': '列出本地记忆库中的全部记录，用于浏览已保存的知识',
           'parameters': {
             'type': 'object',
             'properties': {
-              'uri': {'type': 'string', 'description': '要删除的文件 URI'},
-            },
-            'required': ['uri'],
-          },
-        },
-      },
-      {
-        'type': 'function',
-        'function': {
-          'name': 'openviking_create_session',
-          'description': '在 OpenViking 中创建一个新的对话 Session，用于保存一段完整的对话历史',
-          'parameters': {
-            'type': 'object',
-            'properties': {
-              'session_id': {'type': 'string', 'description': '可选。自定义 session_id (UUID 格式)。不传则自动生成'},
+              'limit': {'type': 'integer', 'description': '最大返回条数（默认 20）'},
             },
             'required': [],
           },
@@ -695,240 +657,170 @@ class ToolHandlerService {
       {
         'type': 'function',
         'function': {
-          'name': 'openviking_add_message',
-          'description': '向 OpenViking Session 中添加一条消息（user 或 assistant）',
+          'name': 'zvec_delete',
+          'description': '按主键删除本地记忆中的一条记录。注意：此操作不可撤销！',
           'parameters': {
             'type': 'object',
             'properties': {
-              'session_id': {'type': 'string', 'description': 'Session ID'},
-              'role': {'type': 'string', 'enum': ['user', 'assistant'], 'description': '消息角色'},
-              'content': {'type': 'string', 'description': '消息内容'},
+              'pk': {'type': 'string', 'description': '要删除的记忆主键'},
             },
-            'required': ['session_id', 'role', 'content'],
+            'required': ['pk'],
           },
         },
       },
       {
         'type': 'function',
         'function': {
-          'name': 'openviking_commit_session',
-          'description': '提交/归档 OpenViking Session，触发从会话内容中提取结构化长期记忆。commit 之后不要再次 add_message',
-          'parameters': {
-            'type': 'object',
-            'properties': {
-              'session_id': {'type': 'string', 'description': 'Session ID'},
-              'keep_recent_count': {'type': 'integer', 'description': '保留最近 N 条消息在活跃 session 中。0=归档所有消息（默认）'},
-            },
-            'required': ['session_id'],
-          },
+          'name': 'zvec_clear',
+          'description': '清空本地记忆库中的所有记录。注意：此操作不可撤销！',
+          'parameters': {'type': 'object', 'properties': {}, 'required': []},
         },
       },
     ];
   }
 
-  /// Handle OpenViking tool calls. Returns null if not an OV tool.
-  Future<String?> _handleOvToolCall(String name, Map<String, dynamic> args) async {
-    const ovTools = [
-      'openviking_search', 'openviking_remember', 'openviking_read',
-      'openviking_list_dir', 'openviking_write_file', 'openviking_delete_file',
-      'openviking_create_session', 'openviking_add_message', 'openviking_commit_session',
+  /// Handle local zvec memory tool calls. Returns null if not a zvec tool.
+  Future<String?> _handleZvecToolCall(
+    String name,
+    Map<String, dynamic> args,
+  ) async {
+    const zvecTools = [
+      'zvec_search',
+      'zvec_remember',
+      'zvec_read',
+      'zvec_list',
+      'zvec_delete',
+      'zvec_clear',
     ];
-    if (!ovTools.contains(name)) return null;
+    if (!zvecTools.contains(name)) return null;
 
-    OpenVikingService? svc;
+    ZvecService? svc;
     try {
-      final ovProvider = contextProvider.read<OpenVikingProvider>();
-      if (!ovProvider.isConfigured) return jsonEncode({'error': 'OpenViking not configured'});
-      svc = ovProvider.service;
-      if (svc == null) return jsonEncode({'error': 'OpenViking service not available'});
+      final zvecProvider = contextProvider.read<ZvecProvider>();
+      if (!zvecProvider.isConfigured) {
+        return jsonEncode({'error': 'zvec 未配置'});
+      }
+      svc = zvecProvider.service;
+      if (svc == null) return jsonEncode({'error': 'zvec 服务不可用'});
     } catch (e) {
-      return jsonEncode({'error': 'Failed to read OpenViking config: $e'});
+      return jsonEncode({'error': '读取 zvec 配置失败: $e'});
     }
 
-    final base = svc.baseUrl.replaceAll(RegExp(r'/\$'), '');
-    final user = svc.user;
-    final headers = {
-      'Authorization': 'Bearer ${svc.apiKey}',
-      'Content-Type': 'application/json',
-      'X-OpenViking-Account': 'default',
-      'X-OpenViking-Peer': 'default',
-    };
-
     try {
-      if (name == 'openviking_search') {
+      if (name == 'zvec_search') {
         final query = (args['query'] ?? '').toString().trim();
         if (query.isEmpty) return jsonEncode({'error': 'query is required'});
-        final ovProvider = contextProvider.read<OpenVikingProvider>();
-        final threshold = ovProvider.threshold;
-        final limit = ovProvider.displayCount;
-        final resp = await http.post(
-          Uri.parse('$base/api/v1/search/search'),
-          headers: headers,
-          body: jsonEncode({'query': query, 'score_threshold': threshold, 'limit': limit}),
-        ).timeout(const Duration(seconds: 15));
-        if (resp.statusCode != 200) return jsonEncode({'error': 'HTTP ${resp.statusCode}'});
-        final body = jsonDecode(resp.body);
-        final result = body['result'] as Map? ?? {};
-        final mems = result['memories'] as List? ?? [];
-        if (mems.isEmpty) return jsonEncode({'success': true, 'results': [], 'message': 'No results'});
-        final hits = mems.take(8).map((m) {
-          final obj = m as Map;
-          return {
-            'uri': obj['uri'] ?? '',
-            'score': (obj['score'] as num?)?.toDouble() ?? 0.0,
-            'snippet': (obj['abstract'] as String? ?? '').toString(),
-            'category': obj['category'] ?? '',
-          };
-        }).toList();
-        return jsonEncode({'success': true, 'results': hits});
+        final zvecProvider = contextProvider.read<ZvecProvider>();
+        final threshold =
+            (args['score_threshold'] as num?)?.toDouble() ??
+            zvecProvider.threshold;
+        final limit =
+            (args['limit'] as num?)?.toInt() ?? zvecProvider.displayCount;
+        final hits = await svc.search(
+          query,
+          scoreThreshold: threshold,
+          limit: limit.clamp(1, 10),
+        );
+        if (hits.isEmpty) {
+          return jsonEncode({
+            'success': true,
+            'results': <Map<String, dynamic>>[],
+            'message': '未找到相关记忆',
+          });
+        }
+        return jsonEncode({
+          'success': true,
+          'results': hits
+              .map(
+                (h) => {
+                  'pk': h.pk,
+                  'score': h.score,
+                  'snippet': h.content,
+                  'category': h.category ?? '',
+                },
+              )
+              .toList(),
+        });
       }
 
-      if (name == 'openviking_remember') {
+      if (name == 'zvec_remember') {
         final category = (args['category'] ?? 'entities').toString().trim();
-        final name = (args['name'] ?? 'untitled').toString().trim();
+        final title = (args['name'] ?? 'untitled').toString().trim();
         final content = (args['content'] ?? '').toString().trim();
-        if (content.isEmpty) return jsonEncode({'error': 'content is required'});
-        final uri = 'viking://user/$user/peers/default/memories/$category/$name.md';
-
-        // Try replace first; if NOT_FOUND/404, retry with create (aligned with Android-agent)
-        final resp = await http.post(
-          Uri.parse('$base/api/v1/content/write'),
-          headers: headers,
-          body: jsonEncode({'uri': uri, 'content': content, 'mode': 'replace', 'wait': true}),
-        ).timeout(const Duration(seconds: 15));
-
-        if (resp.statusCode == 200) {
-          final b = jsonDecode(resp.body);
-          final errCode = b['error'] is Map ? b['error']['code']?.toString() ?? '' : '';
-          if (b['status'] == 'ok') return jsonEncode({'success': true, 'uri': uri});
-          if (errCode.contains('NOT_FOUND')) {
-            // File doesn't exist, create it
-            final retry = await http.post(
-              Uri.parse('$base/api/v1/content/write'),
-              headers: headers,
-              body: jsonEncode({'uri': uri, 'content': content, 'mode': 'create', 'wait': false}),
-            ).timeout(const Duration(seconds: 15));
-            if (retry.statusCode == 200) return jsonEncode({'success': true, 'uri': uri});
-            return jsonEncode({'error': 'Create failed: HTTP ${retry.statusCode}'});
-          }
-          return jsonEncode({'error': '$errCode'});
+        if (content.isEmpty) {
+          return jsonEncode({'error': 'content is required'});
         }
-        // 404 fallback (file doesn't exist)
-        if (resp.statusCode == 404) {
-          final retry = await http.post(
-            Uri.parse('$base/api/v1/content/write'),
-            headers: headers,
-            body: jsonEncode({'uri': uri, 'content': content, 'mode': 'create', 'wait': false}),
-          ).timeout(const Duration(seconds: 15));
-          if (retry.statusCode == 200) return jsonEncode({'success': true, 'uri': uri});
-          return jsonEncode({'error': 'Create failed: HTTP ${retry.statusCode}'});
-        }
-        return jsonEncode({'error': 'HTTP ${resp.statusCode}'});
+        final pk = 'memories/$category/${_slug(title)}';
+        await svc.remember(
+          pk: pk,
+          content: content,
+          title: title,
+          category: category,
+        );
+        return jsonEncode({'success': true, 'pk': pk});
       }
 
-      if (name == 'openviking_read') {
-        final uri = (args['uri'] ?? '').toString().trim();
-        if (uri.isEmpty) return jsonEncode({'error': 'uri is required'});
-        final resp = await http.get(
-          Uri.parse('$base/api/v1/content/read?uri=${Uri.encodeComponent(uri)}'),
-          headers: headers,
-        ).timeout(const Duration(seconds: 15));
-        if (resp.statusCode != 200) return jsonEncode({'error': 'HTTP ${resp.statusCode}'});
-        final body = jsonDecode(resp.body);
-        final content = body['content'] ?? resp.body;
-        return jsonEncode({'success': true, 'uri': uri, 'content': content});
+      if (name == 'zvec_read') {
+        final pk = (args['pk'] ?? '').toString().trim();
+        if (pk.isEmpty) return jsonEncode({'error': 'pk is required'});
+        final rec = await svc.read(pk);
+        if (rec == null) return jsonEncode({'error': '未找到记录: $pk'});
+        return jsonEncode({
+          'success': true,
+          'pk': rec.pk,
+          'title': rec.title,
+          'category': rec.category,
+          'content': rec.content,
+        });
       }
 
-      if (name == 'openviking_list_dir') {
-        final uri = (args['uri'] ?? '').toString().trim();
-        if (uri.isEmpty) return jsonEncode({'error': 'uri is required'});
-        final recursive = args['recursive'] == true;
-        final resp = await http.get(
-          Uri.parse('$base/api/v1/fs/tree?uri=${Uri.encodeComponent(uri)}${recursive ? '&recursive=true' : ''}'),
-          headers: headers,
-        ).timeout(const Duration(seconds: 15));
-        if (resp.statusCode != 200) return jsonEncode({'error': 'HTTP ${resp.statusCode}'});
-        return jsonEncode({'success': true, 'tree': jsonDecode(resp.body)});
+      if (name == 'zvec_list') {
+        final limit = (args['limit'] as num?)?.toInt() ?? 20;
+        final records = await svc.list(limit: limit.clamp(1, 200));
+        return jsonEncode({
+          'success': true,
+          'count': records.length,
+          'results': records
+              .map(
+                (r) => {
+                  'pk': r.pk,
+                  'title': r.title ?? '',
+                  'category': r.category ?? '',
+                  'snippet': r.content.length > 100
+                      ? r.content.substring(0, 100)
+                      : r.content,
+                },
+              )
+              .toList(),
+        });
       }
 
-      if (name == 'openviking_write_file') {
-        final uri = (args['uri'] ?? '').toString().trim();
-        final content = (args['content'] ?? '').toString().trim();
-        final mode = (args['mode'] ?? 'replace').toString().trim();
-        if (uri.isEmpty) return jsonEncode({'error': 'uri is required'});
-        if (content.isEmpty) return jsonEncode({'error': 'content is required'});
-        final resp = await http.post(
-          Uri.parse('$base/api/v1/content/write'),
-          headers: headers,
-          body: jsonEncode({'uri': uri, 'content': content, 'mode': mode, 'wait': mode != 'create'}),
-        ).timeout(const Duration(seconds: 15));
-        if (resp.statusCode == 200) return jsonEncode({'success': true, 'uri': uri, 'mode': mode});
-        return jsonEncode({'error': 'HTTP ${resp.statusCode}'});
+      if (name == 'zvec_delete') {
+        final pk = (args['pk'] ?? '').toString().trim();
+        if (pk.isEmpty) return jsonEncode({'error': 'pk is required'});
+        await svc.delete(pk);
+        return jsonEncode({'success': true, 'pk': pk});
       }
 
-      if (name == 'openviking_delete_file') {
-        final uri = (args['uri'] ?? '').toString().trim();
-        if (uri.isEmpty) return jsonEncode({'error': 'uri is required'});
-        final resp = await http.delete(
-          Uri.parse('$base/api/v1/fs?uri=${Uri.encodeComponent(uri)}'),
-          headers: headers,
-        ).timeout(const Duration(seconds: 15));
-        if (resp.statusCode == 200) return jsonEncode({'success': true, 'uri': uri});
-        return jsonEncode({'error': 'HTTP ${resp.statusCode}'});
-      }
-
-      if (name == 'openviking_create_session') {
-        final sessionId = (args['session_id'] ?? '').toString().trim();
-        final payload = sessionId.isNotEmpty ? {'session_id': sessionId} : {};
-        final resp = await http.post(
-          Uri.parse('$base/api/v1/sessions'),
-          headers: headers,
-          body: jsonEncode(payload),
-        ).timeout(const Duration(seconds: 15));
-        if (resp.statusCode == 200) {
-          final body = jsonDecode(resp.body);
-          return jsonEncode({'success': true, 'result': body['result'] ?? body});
-        }
-        return jsonEncode({'error': 'HTTP ${resp.statusCode}'});
-      }
-
-      if (name == 'openviking_add_message') {
-        final sessionId = (args['session_id'] ?? '').toString().trim();
-        final role = (args['role'] ?? '').toString().trim();
-        final content = (args['content'] ?? '').toString().trim();
-        if (sessionId.isEmpty) return jsonEncode({'error': 'session_id is required'});
-        if (role.isEmpty) return jsonEncode({'error': 'role is required'});
-        final resp = await http.post(
-          Uri.parse('$base/api/v1/sessions/$sessionId/messages'),
-          headers: headers,
-          body: jsonEncode({'role': role, 'content': content}),
-        ).timeout(const Duration(seconds: 15));
-        if (resp.statusCode == 200) {
-          final body = jsonDecode(resp.body);
-          return jsonEncode({'success': true, 'result': body['result'] ?? body});
-        }
-        return jsonEncode({'error': 'HTTP ${resp.statusCode}'});
-      }
-
-      if (name == 'openviking_commit_session') {
-        final sessionId = (args['session_id'] ?? '').toString().trim();
-        final keepRecent = (args['keep_recent_count'] as num?)?.toInt() ?? 0;
-        if (sessionId.isEmpty) return jsonEncode({'error': 'session_id is required'});
-        final resp = await http.post(
-          Uri.parse('$base/api/v1/sessions/$sessionId/commit'),
-          headers: headers,
-          body: jsonEncode({'keep_recent_count': keepRecent}),
-        ).timeout(const Duration(seconds: 15));
-        if (resp.statusCode == 200) {
-          final body = jsonDecode(resp.body);
-          return jsonEncode({'success': true, 'result': body['result'] ?? body});
-        }
-        return jsonEncode({'error': 'HTTP ${resp.statusCode}'});
+      if (name == 'zvec_clear') {
+        await svc.clear();
+        return jsonEncode({'success': true});
       }
     } catch (e) {
-      return jsonEncode({'error': 'OpenViking call failed: $e'});
+      return jsonEncode({'error': 'zvec call failed: $e'});
     }
 
-    return jsonEncode({'error': 'OpenViking tool internal error: unexpected flow'});
+    return jsonEncode({'error': 'zvec tool internal error: unexpected flow'});
+  }
+
+  /// 将记忆名称转为安全的主键片段。
+  static String _slug(String s) {
+    final trimmed = s.trim();
+    if (trimmed.isEmpty) return 'untitled';
+    final out = trimmed
+        .replaceAll(RegExp(r'[\\/:*?"<>|#%&\s]+'), '_')
+        .replaceAll(RegExp(r'_+'), '_')
+        .replaceAll(RegExp(r'^_|_$'), '');
+    return out.isEmpty ? 'untitled' : out;
   }
 }

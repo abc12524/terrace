@@ -1,0 +1,138 @@
+// The Android Gradle Plugin builds the native code with the Android NDK.
+
+group = "com.alibaba.zvec"
+version = "0.5.2"
+
+// ---------------------------------------------------------------------------
+// Zvec native library version — update this when releasing a new version.
+// The prebuilt .so files are downloaded from GitHub Releases at build time.
+// ---------------------------------------------------------------------------
+def ZVEC_VERSION = "0.5.2"
+def ZVEC_GITHUB_BASE = "https://github.com/zvec-ai/zvec-dart/releases/download/v${ZVEC_VERSION}"
+
+// Local vendor zip (bundled in this repo) so builds work without GitHub access.
+def vendorZip = file("$projectDir/vendor/libzvec-android-arm64-v8a.zip")
+
+buildscript {
+    repositories {
+        maven { url = "https://maven.aliyun.com/repository/google" }
+        maven { url = "https://maven.aliyun.com/repository/central" }
+        maven { url = "https://maven.aliyun.com/repository/gradle-plugin" }
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        // The Android Gradle Plugin knows how to build native code with the NDK.
+        classpath("com.android.tools.build:gradle:8.11.1")
+    }
+}
+
+rootProject.allprojects {
+    repositories {
+        maven { url = "https://maven.aliyun.com/repository/google" }
+        maven { url = "https://maven.aliyun.com/repository/central" }
+        maven { url = "https://maven.aliyun.com/repository/gradle-plugin" }
+        google()
+        mavenCentral()
+    }
+}
+
+apply plugin: "com.android.library"
+
+android {
+    namespace = "com.alibaba.zvec"
+
+    // Bumping the plugin compileSdk version requires all clients of this plugin
+    // to bump the version in their app.
+    compileSdk = 36
+
+    // Use the NDK version
+    // declared in /android/app/build.gradle file of the Flutter project.
+    // Replace it with a version number if this plugin requires a specific NDK version.
+    // (e.g. ndkVersion "23.1.7779620")
+    ndkVersion = android.ndkVersion
+
+    // Invoke the shared CMake build with the Android Gradle Plugin.
+    externalNativeBuild {
+        cmake {
+            path = "../src/CMakeLists.txt"
+
+            // The default CMake version for the Android Gradle Plugin is 3.10.2.
+            // https://developer.android.com/studio/projects/install-ndk#vanilla_cmake
+            //
+            // The Flutter tooling requires that developers have CMake 3.10 or later
+            // installed. You should not increase this version, as doing so will cause
+            // the plugin to fail to compile for some customers of the plugin.
+            // version "3.10.2"
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    defaultConfig {
+        minSdk = 21
+
+        ndk {
+            // Only arm64-v8a is supported. armeabi-v7a is disabled because
+            // upstream zvec cmake unconditionally appends -march=armv8 flags.
+            abiFilters 'arm64-v8a'
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Download prebuilt libzvec.so from GitHub Releases
+// ---------------------------------------------------------------------------
+def jniLibsDir = "$projectDir/src/main/jniLibs"
+
+def zipFiles = [
+    'arm64-v8a'  : "${ZVEC_GITHUB_BASE}/libzvec-android-arm64-v8a.zip",
+]
+
+task downloadZvecNativeLibs {
+    description = 'Download prebuilt libzvec.so for each ABI from GitHub Releases'
+    doLast {
+        zipFiles.each { abi, url ->
+            def libDir = file("$jniLibsDir/$abi")
+            def libFile = file("$libDir/libzvec.so")
+            if (!libFile.exists()) {
+                def tmpDir = file("$buildDir/tmp")
+                tmpDir.mkdirs()
+                def zipFile = file("$tmpDir/zvec-${abi}.zip")
+
+                libDir.mkdirs()
+
+                if (vendorZip.exists()) {
+                    println "Extracting libzvec.so from local vendor zip: $vendorZip"
+                    copy {
+                        from zipTree(vendorZip)
+                        into libDir
+                        include "*.so"
+                    }
+                } else {
+                    println "Downloading libzvec.so for $abi ..."
+                    println "  URL: $url"
+                    new URL(url).withInputStream { i ->
+                        zipFile.withOutputStream { it << i }
+                    }
+                    println "Extracting to $libDir"
+                    copy {
+                        from zipTree(zipFile)
+                        into libDir
+                        include "*.so"
+                    }
+                    delete zipFile
+                }
+                println "Done: $libFile (${libFile.length() / 1024 / 1024} MB)"
+            } else {
+                println "libzvec.so for $abi already exists, skipping download"
+            }
+        }
+    }
+}
+
+preBuild.dependsOn downloadZvecNativeLibs

@@ -18,7 +18,7 @@ import '../../quick_phrase/pages/quick_phrases_page.dart';
 import '../../instruction_injection/pages/instruction_injection_page.dart';
 import '../../world_book/pages/world_book_page.dart';
 import 'network_proxy_page.dart';
-import 'openviking_page.dart';
+import 'zvec_memory_page.dart';
 import 'storage_space_page.dart';
 import '../../stats/pages/stats_page.dart';
 import '../../../core/services/storage/storage_usage_service.dart';
@@ -231,12 +231,10 @@ class SettingsPage extends StatelessWidget {
               _iosNavRow(
                 context,
                 icon: Lucide.Brain,
-                label: 'OpenViking 记忆',
+                label: '本地记忆 (zvec)',
                 onTap: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const OpenVikingPage(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const ZvecMemoryPage()),
                   );
                 },
               ),
