@@ -75,12 +75,20 @@ class ZvecService {
       final schema = coll.schema;
       final vectorField = schema.getField('embedding');
       final existingDim = vectorField?.dimension ?? 0;
+      final hasPath = schema.hasField('path');
       schema.destroy();
-      if (existingDim != 0 && existingDim == _dimension) return coll;
-      // 维度不匹配（如换了 embedding 模型），重建集合
-      coll.close();
-      final dbDir = Directory(path);
-      if (dbDir.existsSync()) dbDir.deleteSync(recursive: true);
+      if (existingDim != 0 && existingDim != _dimension) {
+        // 维度不匹配（如换了 embedding 模型），重建集合
+        coll.close();
+        final dbDir = Directory(path);
+        if (dbDir.existsSync()) dbDir.deleteSync(recursive: true);
+      } else {
+        // 旧集合补 path 列（此前 schema 未定义 path 字段导致写入被拒）
+        if (!hasPath) {
+          coll.addColumn(FieldSchema(name: 'path', dataType: DataType.string));
+        }
+        return coll;
+      }
     } catch (_) {
       // 集合尚不存在，走创建分支
     }
@@ -173,11 +181,8 @@ class ZvecService {
     }
     // 先向量化，失败则不落盘
     final vec = await embedding.embed(resolvedContent);
-    final file = File('${_filesRoot!}/$pk');
-    file.parent.createSync(recursive: true);
-    file.writeAsStringSync(resolvedContent);
-
-    final doc = Doc(id: _hashPk(pk))
+    final docPk = _hashPk(pk);
+    final doc = Doc(id: docPk)
       ..setField('content', resolvedContent)
       ..setField('path', pk)
       ..setVector('embedding', Float32List.fromList(vec));
@@ -185,11 +190,15 @@ class ZvecService {
     if (category != null && category.isNotEmpty) {
       doc.setField('category', category);
     }
+    // 向量入库成功后才写文件与注册表，避免写了一半残留
     try {
       final result = _collection!.upsert([doc]);
       if (result.errorCount > 0) {
         throw ZvecException(result.errorMessages.join('; '));
       }
+      final file = File('${_filesRoot!}/$pk');
+      file.parent.createSync(recursive: true);
+      file.writeAsStringSync(resolvedContent);
       _addPk(pk);
     } finally {
       doc.destroy();
