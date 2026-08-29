@@ -23,14 +23,6 @@
 > - **应用名称**：`Terrace`
 > - **Android 包名 / iOS Bundle ID**：`com.terrace`
 
-## 🚀 下载
-
-[![Download on the App Store](https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg)](https://apps.apple.com/us/app/terrace/id6752122930)
-
-🔗 [下载最新版本](https://github.com/Chevey339/terrace/releases/latest)
-
-🔗 [TestFlight](https://testflight.apple.com/join/erbGGykR) 参与测试版体验。
-
 ## 💖 赞助
 
 感谢 [siliconflow.cn](https://siliconflow.cn) 与我们合作提供可免费使用的模型。
