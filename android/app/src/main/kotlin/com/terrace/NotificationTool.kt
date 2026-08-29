@@ -1,4 +1,4 @@
-package com.psyche.kelivo
+package com.terrace
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -102,7 +102,7 @@ class NotificationTool : Tool {
             else -> NotificationManager.IMPORTANCE_DEFAULT
         }
 
-        val context = com.psyche.kelivo.MainActivity.mActivity
+        val context = com.terrace.MainActivity.mActivity
         val notificationId = nextId++
 
         postNotification(context, title, content, priority, notificationId)

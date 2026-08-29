@@ -10,7 +10,7 @@ import '../../models/backup.dart';
 
 class S3BackupClient {
   const S3BackupClient();
-  static const String _manifestObjectName = '.kelivo_backups_manifest.json';
+  static const String _manifestObjectName = '.terrace_backups_manifest.json';
 
   static List<String> _normalizedBasePathSegments(Uri base, S3Config cfg) {
     final segs = base.pathSegments.where((s) => s.trim().isNotEmpty).toList();

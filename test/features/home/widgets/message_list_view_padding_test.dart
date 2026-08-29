@@ -1,16 +1,16 @@
 import 'dart:ui';
 
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/providers/tts_provider.dart';
-import 'package:Kelivo/features/home/controllers/stream_controller.dart'
+import 'package:Terrace/core/models/chat_message.dart';
+import 'package:Terrace/core/providers/assistant_provider.dart';
+import 'package:Terrace/core/providers/settings_provider.dart';
+import 'package:Terrace/core/providers/tts_provider.dart';
+import 'package:Terrace/features/home/controllers/stream_controller.dart'
     as stream_ctrl;
-import 'package:Kelivo/features/home/controllers/streaming_content_notifier.dart';
-import 'package:Kelivo/features/home/services/ask_user_interaction_service.dart';
-import 'package:Kelivo/features/home/services/tool_approval_service.dart';
-import 'package:Kelivo/features/home/widgets/message_list_view.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Terrace/features/home/controllers/streaming_content_notifier.dart';
+import 'package:Terrace/features/home/services/ask_user_interaction_service.dart';
+import 'package:Terrace/features/home/services/tool_approval_service.dart';
+import 'package:Terrace/features/home/widgets/message_list_view.dart';
+import 'package:Terrace/l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

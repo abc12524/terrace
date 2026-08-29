@@ -24,7 +24,7 @@ import '../../stats/pages/stats_page.dart';
 import '../../../core/services/storage/storage_usage_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/services/haptics.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Terrace/theme/app_font_weights.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -369,7 +369,7 @@ class SettingsPage extends StatelessWidget {
                 icon: Lucide.Library,
                 label: l10n.settingsPageDocs,
                 onTap: () async {
-                  final uri = Uri.parse('https://kelivo.psycheas.top/');
+                  final uri = Uri.parse('https://terrace.psycheas.top/');
                   if (!await launchUrl(uri, mode: LaunchMode.platformDefault)) {
                     await launchUrl(uri, mode: LaunchMode.externalApplication);
                   }

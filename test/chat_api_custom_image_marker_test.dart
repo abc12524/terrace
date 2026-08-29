@@ -3,8 +3,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/chat_api_service.dart';
+import 'package:Terrace/core/providers/settings_provider.dart';
+import 'package:Terrace/core/services/api/chat_api_service.dart';
 
 ProviderConfig _openAiConfig(String baseUrl) {
   return ProviderConfig(
@@ -26,7 +26,7 @@ void main() {
   group('ChatApiService custom image markers', () {
     test('encodes existing local custom image markers as data URLs', () async {
       final body = await _sendAndCaptureRequestBody((baseUrl) async {
-        final dir = await Directory.systemTemp.createTemp('kelivo_local_img_');
+        final dir = await Directory.systemTemp.createTemp('terrace_local_img_');
         addTearDown(() async {
           if (await dir.exists()) {
             await dir.delete(recursive: true);
@@ -146,7 +146,7 @@ void main() {
       'strips historical local image markers for text-only models',
       () async {
         final dir = await Directory.systemTemp.createTemp(
-          'kelivo_text_only_history_img_',
+          'terrace_text_only_history_img_',
         );
         addTearDown(() async {
           if (await dir.exists()) {
@@ -182,7 +182,7 @@ void main() {
 
     test('does not attach current images for text-only models', () async {
       final dir = await Directory.systemTemp.createTemp(
-        'kelivo_text_only_current_img_',
+        'terrace_text_only_current_img_',
       );
       addTearDown(() async {
         if (await dir.exists()) {
@@ -332,7 +332,7 @@ void main() {
       're-encodes local custom image markers for tool continuation requests',
       () async {
         final dir = await Directory.systemTemp.createTemp(
-          'kelivo_tool_local_img_',
+          'terrace_tool_local_img_',
         );
         addTearDown(() async {
           if (await dir.exists()) {
@@ -393,7 +393,7 @@ void main() {
       'keeps local custom image markers in Responses tool continuation input',
       () async {
         final dir = await Directory.systemTemp.createTemp(
-          'kelivo_responses_tool_img_',
+          'terrace_responses_tool_img_',
         );
         addTearDown(() async {
           if (await dir.exists()) {

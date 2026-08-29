@@ -1,4 +1,4 @@
-package com.psyche.kelivo
+package com.terrace
 
 import android.content.Context
 import android.media.AudioAttributes
@@ -58,7 +58,7 @@ class SoundTool : Tool {
             ),
             "url" to mapOf(
                 "type" to "string",
-                "description" to "音频文件 URL，仅 mode=audio_url 时生效。支持 http/https 远程链接或 file:/// 本地文件路径，如 file:///data/user/0/com.psyche.kelivo/recording.wav"
+                "description" to "音频文件 URL，仅 mode=audio_url 时生效。支持 http/https 远程链接或 file:/// 本地文件路径，如 file:///data/user/0/com.terrace/recording.wav"
             ),
             "stream_type" to mapOf(
                 "type" to "string",
@@ -132,7 +132,7 @@ class SoundTool : Tool {
         }
 
         return try {
-            val context = com.psyche.kelivo.MainActivity.mActivity
+            val context = com.terrace.MainActivity.mActivity
             val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
             // 释放前一个播放器
@@ -225,7 +225,7 @@ class SoundTool : Tool {
         }
 
         return try {
-            val context = com.psyche.kelivo.MainActivity.mActivity
+            val context = com.terrace.MainActivity.mActivity
             val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
             releaseCurrent()

@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Terrace/theme/app_font_weights.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -2411,7 +2411,7 @@ class _WebDavSettingsPageState extends State<_WebDavSettingsPage> {
     _userCtrl = TextEditingController(text: widget.cfg.username);
     _passCtrl = TextEditingController(text: widget.cfg.password);
     _pathCtrl = TextEditingController(
-      text: widget.cfg.path.isEmpty ? 'kelivo_backups' : widget.cfg.path,
+      text: widget.cfg.path.isEmpty ? 'terrace_backups' : widget.cfg.path,
     );
     _userAgentCtrl = TextEditingController(text: widget.cfg.userAgent);
   }
@@ -2496,7 +2496,7 @@ class _WebDavSettingsPageState extends State<_WebDavSettingsPage> {
                             _InputRow(
                               label: l10n.backupPagePath,
                               controller: _pathCtrl,
-                              hint: 'kelivo_backups',
+                              hint: 'terrace_backups',
                             ),
                             const SizedBox(height: 12),
                             _InputRow(
@@ -2534,7 +2534,7 @@ class _WebDavSettingsPageState extends State<_WebDavSettingsPage> {
       username: _userCtrl.text.trim(),
       password: _passCtrl.text,
       path: _pathCtrl.text.trim().isEmpty
-          ? 'kelivo_backups'
+          ? 'terrace_backups'
           : _pathCtrl.text.trim(),
       userAgent: _userAgentCtrl.text.trim(),
     );
@@ -2585,7 +2585,7 @@ class _S3SettingsPageState extends State<_S3SettingsPage> {
     _secretKeyCtrl = TextEditingController(text: widget.cfg.secretAccessKey);
     _sessionTokenCtrl = TextEditingController(text: widget.cfg.sessionToken);
     _prefixCtrl = TextEditingController(
-      text: widget.cfg.prefix.isEmpty ? 'kelivo_backups' : widget.cfg.prefix,
+      text: widget.cfg.prefix.isEmpty ? 'terrace_backups' : widget.cfg.prefix,
     );
     _userAgentCtrl = TextEditingController(text: widget.cfg.userAgent);
     _pathStyle = widget.cfg.pathStyle;
@@ -2696,7 +2696,7 @@ class _S3SettingsPageState extends State<_S3SettingsPage> {
                             _InputRow(
                               label: l10n.backupPageS3Prefix,
                               controller: _prefixCtrl,
-                              hint: 'kelivo_backups',
+                              hint: 'terrace_backups',
                             ),
                             const SizedBox(height: 12),
                             _InputRow(
@@ -2777,7 +2777,7 @@ class _S3SettingsPageState extends State<_S3SettingsPage> {
       secretAccessKey: _secretKeyCtrl.text,
       sessionToken: _sessionTokenCtrl.text,
       prefix: _prefixCtrl.text.trim().isEmpty
-          ? 'kelivo_backups'
+          ? 'terrace_backups'
           : _prefixCtrl.text.trim(),
       pathStyle: _pathStyle,
       userAgent: _userAgentCtrl.text.trim(),

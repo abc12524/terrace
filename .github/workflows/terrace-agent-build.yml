@@ -1,4 +1,4 @@
-name: Build Kelivo Agent APK
+name: Build Terrace Agent APK
 
 on:
   push:
@@ -77,19 +77,19 @@ jobs:
       - name: 📦 重命名 APK
         run: |
           cd build/app/outputs/flutter-apk
-          mv app-release.apk "Kelivo_android_${VERSION}_arm64-v8a.apk"
+          mv app-release.apk "Terrace_android_${VERSION}_arm64-v8a.apk"
 
       - name: 📤 上传构建产物
         uses: actions/upload-artifact@v4
         with:
-          name: kelivo-agent-arm64-v8a
-          path: build/app/outputs/flutter-apk/Kelivo_android_*.apk
+          name: terrace-agent-arm64-v8a
+          path: build/app/outputs/flutter-apk/Terrace_android_*.apk
           if-no-files-found: error
 
       - name: 📤 上传调试符号（崩溃解析用）
         uses: actions/upload-artifact@v4
         with:
-          name: kelivo-symbols-${{ env.VERSION }}
+          name: terrace-symbols-${{ env.VERSION }}
           path: build/symbols
           if-no-files-found: warn
 
@@ -98,11 +98,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
-          name: Kelivo v${{ env.VERSION }}
+          name: Terrace v${{ env.VERSION }}
           body: |
-            Kelivo Agent Release APK（arm64-v8a）
+            Terrace Agent Release APK（arm64-v8a）
             - 版本: v${{ env.VERSION }}
             - 构建号: ${{ github.run_number }}
             - 提交: ${{ github.sha }}
           prerelease: false
-          files: build/app/outputs/flutter-apk/Kelivo_android_*.apk
+          files: build/app/outputs/flutter-apk/Terrace_android_*.apk

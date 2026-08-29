@@ -1,7 +1,7 @@
 import '../../providers/settings_provider.dart';
 
-const String _openRouterAppReferer = 'https://github.com/Chevey339/kelivo';
-const String _openRouterAppTitle = 'Kelivo';
+const String _openRouterAppReferer = 'https://github.com/Chevey339/terrace';
+const String _openRouterAppTitle = 'Terrace';
 const String _openRouterAppCategories = 'general-chat';
 
 bool isOpenRouterProvider(ProviderConfig config) {

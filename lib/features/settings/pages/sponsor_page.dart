@@ -7,7 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../core/services/haptics.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Terrace/theme/app_font_weights.dart';
 
 class SponsorPage extends StatefulWidget {
   const SponsorPage({super.key});
@@ -28,7 +28,7 @@ class _SponsorPageState extends State<SponsorPage> {
   Future<_SponsorData> _fetchSponsors() async {
     final ts = DateTime.now().millisecondsSinceEpoch;
     final uri = Uri.parse(
-      'https://kelivo.psycheas.top/sponsor.json?kelivo=$ts',
+      'https://terrace.psycheas.top/sponsor.json?terrace=$ts',
     );
     try {
       final res = await http.get(uri).timeout(const Duration(seconds: 12));
@@ -101,7 +101,7 @@ class _SponsorPageState extends State<SponsorPage> {
                 icon: Lucide.Heart,
                 label: l10n.sponsorPageAfdianTitle,
                 onTap: () async {
-                  final uri = Uri.parse('https://afdian.com/a/kelivo');
+                  final uri = Uri.parse('https://afdian.com/a/terrace');
                   if (!await launchUrl(uri, mode: LaunchMode.platformDefault)) {
                     await launchUrl(uri, mode: LaunchMode.externalApplication);
                   }

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/features/chat/widgets/citation_sources_sheet.dart';
-import 'package:Kelivo/shared/widgets/custom_bottom_sheet.dart';
+import 'package:Terrace/features/chat/widgets/citation_sources_sheet.dart';
+import 'package:Terrace/shared/widgets/custom_bottom_sheet.dart';
 
 void main() {
   testWidgets(
@@ -14,7 +14,7 @@ void main() {
           home: Scaffold(
             body: CitationSourceCard(
               item: const CitationSourceItem(
-                title: 'Kelivo release notes',
+                title: 'Terrace release notes',
                 url: 'https://example.com/releases/1',
                 text: 'A concise source summary',
                 sourceName: 'Example',
@@ -36,7 +36,7 @@ void main() {
       expect(image.height, 14);
       expect(find.text('1'), findsOneWidget);
       expect(find.text('Example'), findsOneWidget);
-      expect(find.text('Kelivo release notes'), findsOneWidget);
+      expect(find.text('Terrace release notes'), findsOneWidget);
       expect(
         find.text('2026-05-23 - A concise source summary'),
         findsOneWidget,

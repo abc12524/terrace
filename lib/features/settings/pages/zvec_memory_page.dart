@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../core/providers/zvec_provider.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Terrace/theme/app_font_weights.dart';
 
 /// 本地向量记忆（zvec）设置页。
 class ZvecMemoryPage extends StatefulWidget {

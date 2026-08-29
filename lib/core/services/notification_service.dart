@@ -6,7 +6,7 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
   static bool _inited = false;
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
-    'kelivo_bg_chat_v2',
+    'terrace_bg_chat_v2',
     'Chat Background',
     description: 'Notifications for chat generation status',
     importance: Importance.high,
@@ -75,7 +75,7 @@ class NotificationService {
           enableVibration: true,
           category: AndroidNotificationCategory.message,
           visibility: NotificationVisibility.public,
-          ticker: 'Kelivo',
+          ticker: 'Terrace',
           styleInformation: const DefaultStyleInformation(true, true),
         ),
       ),

@@ -1,4 +1,4 @@
-package com.psyche.kelivo
+package com.terrace
 
 import android.content.Context
 import android.hardware.Sensor

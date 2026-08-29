@@ -90,7 +90,7 @@ class UpdateProvider extends ChangeNotifier {
     try {
       final ts = DateTime.now().millisecondsSinceEpoch;
       final url = Uri.parse(
-        'https://kelivo.psycheas.top/update.json?kelivo=$ts',
+        'https://terrace.psycheas.top/update.json?terrace=$ts',
       );
       final resp = await http.get(url);
       if (resp.statusCode != 200) {

@@ -5,19 +5,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/providers/tts_provider.dart';
-import 'package:Kelivo/core/services/api/chat_api_service.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/features/chat/widgets/chat_message_widget.dart';
-import 'package:Kelivo/features/home/controllers/stream_controller.dart'
+import 'package:Terrace/core/models/chat_message.dart';
+import 'package:Terrace/core/providers/settings_provider.dart';
+import 'package:Terrace/core/providers/tts_provider.dart';
+import 'package:Terrace/core/services/api/chat_api_service.dart';
+import 'package:Terrace/core/services/chat/chat_service.dart';
+import 'package:Terrace/features/chat/widgets/chat_message_widget.dart';
+import 'package:Terrace/features/home/controllers/stream_controller.dart'
     as home_stream;
-import 'package:Kelivo/features/home/services/ask_user_interaction_service.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/features/home/services/tool_approval_service.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
+import 'package:Terrace/features/home/services/ask_user_interaction_service.dart';
+import 'package:Terrace/icons/lucide_adapter.dart';
+import 'package:Terrace/features/home/services/tool_approval_service.dart';
+import 'package:Terrace/l10n/app_localizations.dart';
+import 'package:Terrace/shared/widgets/ios_tactile.dart';
 
 SettingsProvider _createSettings(ChatMessageBackgroundStyle style) {
   final rawStyle = switch (style) {
@@ -188,7 +188,7 @@ void main() {
               ToolUIPart(
                 id: 'search-web-second',
                 toolName: 'search_web',
-                arguments: {'query': 'Kelivo release'},
+                arguments: {'query': 'Terrace release'},
                 content:
                     '{"items":[{"title":"Third source","url":"https://three.example.com/c","text":"C"}]}',
               ),
@@ -375,7 +375,7 @@ void main() {
               ToolUIPart(
                 id: 'tool-1',
                 toolName: 'search_web',
-                arguments: {'query': 'Kelivo'},
+                arguments: {'query': 'Terrace'},
                 content: '搜索结果',
               ),
             ],
@@ -391,7 +391,7 @@ void main() {
         _expectedNeutralStrong(),
       );
       expect(
-        tester.widget<Text>(find.text('Web Search: Kelivo')).style?.color,
+        tester.widget<Text>(find.text('Web Search: Terrace')).style?.color,
         _expectedNeutralStrong(),
       );
       expect(
@@ -423,7 +423,7 @@ void main() {
               ToolUIPart(
                 id: 'tool-2',
                 toolName: 'search_web',
-                arguments: {'query': 'Kelivo'},
+                arguments: {'query': 'Terrace'},
                 content: '搜索结果',
               ),
             ],
@@ -439,7 +439,7 @@ void main() {
         _expectedNeutralStrong(),
       );
       expect(
-        tester.widget<Text>(find.text('Web Search: Kelivo')).style?.color,
+        tester.widget<Text>(find.text('Web Search: Terrace')).style?.color,
         _expectedNeutralStrong(),
       );
     });
@@ -455,7 +455,7 @@ void main() {
               role: 'tool',
               content: jsonEncode({
                 'tool': 'search_web',
-                'arguments': {'query': 'Kelivo'},
+                'arguments': {'query': 'Terrace'},
                 'result': '搜索结果',
               }),
               conversationId: 'conversation-3',
@@ -468,7 +468,7 @@ void main() {
 
       expect(find.byType(BackdropFilter), findsOneWidget);
       expect(
-        tester.widget<Text>(find.text('Web Search: Kelivo')).style?.color,
+        tester.widget<Text>(find.text('Web Search: Terrace')).style?.color,
         _expectedNeutralStrong(),
       );
     });
@@ -486,7 +486,7 @@ void main() {
               role: 'tool',
               content: jsonEncode({
                 'tool': 'search_web',
-                'arguments': {'query': 'Kelivo'},
+                'arguments': {'query': 'Terrace'},
                 'result': '搜索结果',
               }),
               conversationId: 'conversation-4',
@@ -499,7 +499,7 @@ void main() {
 
       expect(find.byType(BackdropFilter), findsNothing);
       expect(
-        tester.widget<Text>(find.text('Web Search: Kelivo')).style?.color,
+        tester.widget<Text>(find.text('Web Search: Terrace')).style?.color,
         _expectedNeutralStrong(),
       );
     });
@@ -662,7 +662,7 @@ void main() {
     ) async {
       final settings = _createSettings(ChatMessageBackgroundStyle.defaultStyle);
       const query =
-          'Kelivo Flutter chat message thinking tool timeline connector wraps';
+          'Terrace Flutter chat message thinking tool timeline connector wraps';
 
       await tester.pumpWidget(
         _buildHarness(

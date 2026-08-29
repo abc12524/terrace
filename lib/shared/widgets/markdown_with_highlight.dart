@@ -28,14 +28,14 @@ import 'export_capture_scope.dart';
 import 'mermaid_image_cache.dart';
 import 'plantuml_block.dart';
 import 'package:path/path.dart' as p;
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
-import 'package:Kelivo/theme/theme_factory.dart' show getPlatformFontFallback;
+import 'package:Terrace/l10n/app_localizations.dart';
+import 'package:Terrace/theme/app_font_weights.dart';
+import 'package:Terrace/theme/theme_factory.dart' show getPlatformFontFallback;
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import '../../core/providers/settings_provider.dart';
-import 'package:Kelivo/desktop/html_preview_dialog.dart';
+import 'package:Terrace/desktop/html_preview_dialog.dart';
 
 // Inline math is parsed on the UI thread. Bound the lookahead window so a long
 // line with many unmatched openers cannot trigger repeated whole-line scans.
@@ -3078,7 +3078,7 @@ class _MarkdownTableBlock extends StatelessWidget {
     final result = await ImageGallerySaverPlus.saveImage(
       bytes,
       quality: 100,
-      name: 'kelivo-table-${DateTime.now().millisecondsSinceEpoch}',
+      name: 'terrace-table-${DateTime.now().millisecondsSinceEpoch}',
     );
     if (result is Map) {
       final isSuccess = result['isSuccess'] == true || result['isSuccess'] == 1;
@@ -3128,7 +3128,7 @@ class _MarkdownTableBlock extends StatelessWidget {
     final file = File(
       p.join(
         dir.path,
-        'kelivo-table-${DateTime.now().millisecondsSinceEpoch}.png',
+        'terrace-table-${DateTime.now().millisecondsSinceEpoch}.png',
       ),
     );
     await file.writeAsBytes(bytes, flush: true);
@@ -3166,7 +3166,7 @@ class _MarkdownTableBlock extends StatelessWidget {
     try {
       final clipboard = SystemClipboard.instance;
       if (clipboard != null) {
-        final item = DataWriterItem(suggestedName: 'kelivo-table.png');
+        final item = DataWriterItem(suggestedName: 'terrace-table.png');
         item.add(Formats.png(bytes));
         await clipboard.write([item]);
         return true;
@@ -4138,7 +4138,7 @@ class _MermaidBlockState extends State<_MermaidBlock> {
       final result = await ImageGallerySaverPlus.saveImage(
         bytes,
         quality: 100,
-        name: 'kelivo-mermaid-${DateTime.now().millisecondsSinceEpoch}',
+        name: 'terrace-mermaid-${DateTime.now().millisecondsSinceEpoch}',
       );
       if (result is Map) {
         final isSuccess =

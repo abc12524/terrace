@@ -1,4 +1,4 @@
-package com.psyche.kelivo
+package com.terrace
 
 import android.Manifest
 import android.content.Context

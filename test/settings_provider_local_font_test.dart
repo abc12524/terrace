@@ -5,8 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
+import 'package:Terrace/core/providers/settings_provider.dart';
+import 'package:Terrace/utils/sandbox_path_resolver.dart';
 
 const _fixtureFontPath =
     'dependencies/gpt_markdown/lib/fonts/JetBrainsMono-Regular.ttf';
@@ -52,7 +52,7 @@ void main() {
 
     setUp(() async {
       previousPathProvider = PathProviderPlatform.instance;
-      tempDir = await Directory.systemTemp.createTemp('kelivo_font_test_');
+      tempDir = await Directory.systemTemp.createTemp('terrace_font_test_');
       PathProviderPlatform.instance = _FakePathProviderPlatform(tempDir.path);
     });
 
@@ -122,10 +122,10 @@ void main() {
           'display_app_font_is_google_v1': false,
           'display_app_font_local_path_v1': sharedPath,
           'display_app_font_local_alias_v1': appAlias,
-          'display_code_font_family_v1': 'kelivo_local_code_123',
+          'display_code_font_family_v1': 'terrace_local_code_123',
           'display_code_font_is_google_v1': false,
           'display_code_font_local_path_v1': sharedPath,
-          'display_code_font_local_alias_v1': 'kelivo_local_code_123',
+          'display_code_font_local_alias_v1': 'terrace_local_code_123',
         });
         final sharedSettings = SettingsProvider();
         await _waitForSettingsLoad();
@@ -156,11 +156,11 @@ void main() {
 
     test('invalid persisted local font does not expose stale alias', () async {
       SharedPreferences.setMockInitialValues({
-        'display_app_font_family_v1': 'kelivo_local_app_123',
+        'display_app_font_family_v1': 'terrace_local_app_123',
         'display_app_font_is_google_v1': false,
         'display_app_font_local_path_v1':
             '/var/mobile/Containers/Data/Application/OLD/Documents/fonts/missing.ttf',
-        'display_app_font_local_alias_v1': 'kelivo_local_app_123',
+        'display_app_font_local_alias_v1': 'terrace_local_app_123',
       });
 
       final settings = SettingsProvider();
@@ -183,11 +183,11 @@ void main() {
       await SandboxPathResolver.init();
 
       SharedPreferences.setMockInitialValues({
-        'display_app_font_family_v1': 'kelivo_local_app_123',
+        'display_app_font_family_v1': 'terrace_local_app_123',
         'display_app_font_is_google_v1': false,
         'display_app_font_local_path_v1':
             '/var/mobile/Containers/Data/Application/OLD/Documents/fonts/SFNS.ttf',
-        'display_app_font_local_alias_v1': 'kelivo_local_app_123',
+        'display_app_font_local_alias_v1': 'terrace_local_app_123',
       });
 
       final settings = SettingsProvider();

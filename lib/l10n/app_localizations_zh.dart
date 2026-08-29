@@ -391,7 +391,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sponsorPageAfdianTitle => '爱发电';
 
   @override
-  String get sponsorPageAfdianSubtitle => 'afdian.com/a/kelivo';
+  String get sponsorPageAfdianSubtitle => 'afdian.com/a/terrace';
 
   @override
   String get sponsorPageWeChatTitle => '微信赞助';
@@ -971,7 +971,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get iosBackgroundLimitNoticeBody =>
-      '这些选项使用 Apple 支持的后台时间、BackgroundTasks、通知和实时活动。它们能提升连续性，但不能强制 iOS 永久保持 Kelivo 运行。';
+      '这些选项使用 Apple 支持的后台时间、BackgroundTasks、通知和实时活动。它们能提升连续性，但不能强制 iOS 永久保持 Terrace 运行。';
 
   @override
   String get iosBackgroundUnsupportedLiveActivity =>
@@ -996,7 +996,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get iosBackgroundNotificationsNotAuthorized => '通知未允许';
 
   @override
-  String get iosBackgroundGenerationActiveTitle => 'Kelivo 正在生成';
+  String get iosBackgroundGenerationActiveTitle => 'Terrace 正在生成';
 
   @override
   String get iosBackgroundGenerationActiveDetail => '助手正在后台回复';
@@ -1049,7 +1049,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get notificationChatCompletedBody => '助手回复已生成';
 
   @override
-  String get androidBackgroundNotificationTitle => 'Kelivo 正在运行';
+  String get androidBackgroundNotificationTitle => 'Terrace 正在运行';
 
   @override
   String get androidBackgroundNotificationText => '后台保持聊天生成';
@@ -3596,7 +3596,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aboutPageEasterEggButton => '好的';
 
   @override
-  String get aboutPageAppName => 'Kelivo';
+  String get aboutPageAppName => 'Terrace';
 
   @override
   String get aboutPageAppDescription => '开源AI 助手';
@@ -3654,10 +3654,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aboutPageJoinQQGroup => '加入QQ群';
 
   @override
-  String get aboutPageQQGroupOne => 'Kelivo 一群';
+  String get aboutPageQQGroupOne => 'Terrace 一群';
 
   @override
-  String get aboutPageQQGroupTwo => 'Kelivo 二群';
+  String get aboutPageQQGroupTwo => 'Terrace 二群';
 
   @override
   String get aboutPageJoinDiscord => '在 Discord 中加入我们';
@@ -4264,7 +4264,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get settingsShare => 'Kelivo - 开源AI助手';
+  String get settingsShare => 'Terrace - 开源AI助手';
 
   @override
   String get searchProviderBingLocalDescription =>
@@ -5709,7 +5709,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get sponsorPageAfdianTitle => '爱发电';
 
   @override
-  String get sponsorPageAfdianSubtitle => 'afdian.com/a/kelivo';
+  String get sponsorPageAfdianSubtitle => 'afdian.com/a/terrace';
 
   @override
   String get sponsorPageWeChatTitle => '微信赞助';
@@ -6289,7 +6289,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get iosBackgroundLimitNoticeBody =>
-      '这些选项使用 Apple 支持的后台时间、BackgroundTasks、通知和实时活动。它们能提升连续性，但不能强制 iOS 永久保持 Kelivo 运行。';
+      '这些选项使用 Apple 支持的后台时间、BackgroundTasks、通知和实时活动。它们能提升连续性，但不能强制 iOS 永久保持 Terrace 运行。';
 
   @override
   String get iosBackgroundUnsupportedLiveActivity =>
@@ -6314,7 +6314,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get iosBackgroundNotificationsNotAuthorized => '通知未允许';
 
   @override
-  String get iosBackgroundGenerationActiveTitle => 'Kelivo 正在生成';
+  String get iosBackgroundGenerationActiveTitle => 'Terrace 正在生成';
 
   @override
   String get iosBackgroundGenerationActiveDetail => '助手正在后台回复';
@@ -6367,7 +6367,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get notificationChatCompletedBody => '助手回复已生成';
 
   @override
-  String get androidBackgroundNotificationTitle => 'Kelivo 正在运行';
+  String get androidBackgroundNotificationTitle => 'Terrace 正在运行';
 
   @override
   String get androidBackgroundNotificationText => '后台保持聊天生成';
@@ -8914,7 +8914,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get aboutPageEasterEggButton => '好的';
 
   @override
-  String get aboutPageAppName => 'Kelivo';
+  String get aboutPageAppName => 'Terrace';
 
   @override
   String get aboutPageAppDescription => '开源 AI 助手';
@@ -8972,10 +8972,10 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get aboutPageJoinQQGroup => '加入QQ群';
 
   @override
-  String get aboutPageQQGroupOne => 'Kelivo 一群';
+  String get aboutPageQQGroupOne => 'Terrace 一群';
 
   @override
-  String get aboutPageQQGroupTwo => 'Kelivo 二群';
+  String get aboutPageQQGroupTwo => 'Terrace 二群';
 
   @override
   String get aboutPageJoinDiscord => '在 Discord 中加入我们';
@@ -9582,7 +9582,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String get settingsShare => 'Kelivo - 开源AI助手';
+  String get settingsShare => 'Terrace - 开源AI助手';
 
   @override
   String get searchProviderBingLocalDescription =>
@@ -11027,7 +11027,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get sponsorPageAfdianTitle => '愛發電';
 
   @override
-  String get sponsorPageAfdianSubtitle => 'afdian.com/a/kelivo';
+  String get sponsorPageAfdianSubtitle => 'afdian.com/a/terrace';
 
   @override
   String get sponsorPageWeChatTitle => '微信贊助';
@@ -11607,7 +11607,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get iosBackgroundLimitNoticeBody =>
-      '這些選項使用 Apple 支援的後台時間、BackgroundTasks、通知和即時活動。它們能提升連續性，但不能強制 iOS 永久保持 Kelivo 運行。';
+      '這些選項使用 Apple 支援的後台時間、BackgroundTasks、通知和即時活動。它們能提升連續性，但不能強制 iOS 永久保持 Terrace 運行。';
 
   @override
   String get iosBackgroundUnsupportedLiveActivity =>
@@ -11632,7 +11632,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get iosBackgroundNotificationsNotAuthorized => '通知未允許';
 
   @override
-  String get iosBackgroundGenerationActiveTitle => 'Kelivo 正在生成';
+  String get iosBackgroundGenerationActiveTitle => 'Terrace 正在生成';
 
   @override
   String get iosBackgroundGenerationActiveDetail => '助理正在後台回覆';
@@ -11685,7 +11685,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get notificationChatCompletedBody => '助手回覆已生成';
 
   @override
-  String get androidBackgroundNotificationTitle => 'Kelivo 正在運行';
+  String get androidBackgroundNotificationTitle => 'Terrace 正在運行';
 
   @override
   String get androidBackgroundNotificationText => '後台保持聊天生成';
@@ -14230,7 +14230,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get aboutPageEasterEggButton => '好的';
 
   @override
-  String get aboutPageAppName => 'Kelivo';
+  String get aboutPageAppName => 'Terrace';
 
   @override
   String get aboutPageAppDescription => '開源 AI 助理';
@@ -14288,10 +14288,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get aboutPageJoinQQGroup => '加入 QQ 群';
 
   @override
-  String get aboutPageQQGroupOne => 'Kelivo 一群';
+  String get aboutPageQQGroupOne => 'Terrace 一群';
 
   @override
-  String get aboutPageQQGroupTwo => 'Kelivo 二群';
+  String get aboutPageQQGroupTwo => 'Terrace 二群';
 
   @override
   String get aboutPageJoinDiscord => '加入我們的 Discord';
@@ -14898,7 +14898,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get settingsShare => 'Kelivo - 開源AI助理';
+  String get settingsShare => 'Terrace - 開源AI助理';
 
   @override
   String get searchProviderBingLocalDescription =>

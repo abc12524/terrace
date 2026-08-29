@@ -3,8 +3,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/models/backup.dart';
-import 'package:Kelivo/core/services/backup/s3_client.dart';
+import 'package:Terrace/core/models/backup.dart';
+import 'package:Terrace/core/services/backup/s3_client.dart';
 
 S3Config _config(HttpServer server) {
   return S3Config(
@@ -13,7 +13,7 @@ S3Config _config(HttpServer server) {
     bucket: 'backup-bucket',
     accessKeyId: 'test-access-key',
     secretAccessKey: 'test-secret-key',
-    prefix: 'kelivo_backups',
+    prefix: 'terrace_backups',
     pathStyle: true,
   );
 }
@@ -22,7 +22,7 @@ String _listResultXml() {
   return '''<?xml version="1.0" encoding="UTF-8"?>
 <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
   <Contents>
-    <Key>kelivo_backups/kelivo_backup_2026-04-22T10-11-12.123456.zip</Key>
+    <Key>terrace_backups/terrace_backup_2026-04-22T10-11-12.123456.zip</Key>
     <LastModified>2026-04-22T10:11:12.123Z</LastModified>
     <Size>128</Size>
   </Contents>
@@ -33,7 +33,7 @@ String _legacyListResultXml() {
   return '''<?xml version="1.0" encoding="UTF-8"?>
 <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
   <Contents>
-    <Key>kelivo_backups/kelivo_backup_2026-04-20T09-00-00.123456.zip</Key>
+    <Key>terrace_backups/terrace_backup_2026-04-20T09-00-00.123456.zip</Key>
     <LastModified>2026-04-20T09:00:00.123Z</LastModified>
     <Size>64</Size>
   </Contents>
@@ -44,7 +44,7 @@ String _backup3ListResultXml() {
   return '''<?xml version="1.0" encoding="UTF-8"?>
 <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
   <Contents>
-    <Key>kelivo_backups/backup_3.zip</Key>
+    <Key>terrace_backups/backup_3.zip</Key>
     <LastModified>2026-04-22T12:00:00.000Z</LastModified>
     <Size>333</Size>
   </Contents>
@@ -63,7 +63,7 @@ String _pagedListResultXml({required bool firstPage}) {
 <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
   <IsTruncated>true</IsTruncated>
   <Contents>
-    <Key>kelivo_backups/page_1.zip</Key>
+    <Key>terrace_backups/page_1.zip</Key>
     <LastModified>2026-04-22T11:00:00.000Z</LastModified>
     <Size>111</Size>
   </Contents>
@@ -74,7 +74,7 @@ String _pagedListResultXml({required bool firstPage}) {
 <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
   <IsTruncated>false</IsTruncated>
   <Contents>
-    <Key>kelivo_backups/page_2.zip</Key>
+    <Key>terrace_backups/page_2.zip</Key>
     <LastModified>2026-04-22T12:00:00.000Z</LastModified>
     <Size>222</Size>
   </Contents>
@@ -94,8 +94,8 @@ String _manifestJson() {
   "version": 1,
   "items": [
     {
-      "key": "kelivo_backups/kelivo_backup_2026-04-22T10-11-12.123456.zip",
-      "displayName": "kelivo_backup_2026-04-22T10-11-12.123456.zip",
+      "key": "terrace_backups/terrace_backup_2026-04-22T10-11-12.123456.zip",
+      "displayName": "terrace_backup_2026-04-22T10-11-12.123456.zip",
       "size": 128,
       "lastModified": "2026-04-22T10:11:12.123Z"
     }
@@ -108,19 +108,19 @@ String _manifestWithGhostsJson() {
   "version": 1,
   "items": [
     {
-      "key": "kelivo_backups/backup_1.zip",
+      "key": "terrace_backups/backup_1.zip",
       "displayName": "backup_1.zip",
       "size": 111,
       "lastModified": "2026-04-20T12:00:00.000Z"
     },
     {
-      "key": "kelivo_backups/backup_2.zip",
+      "key": "terrace_backups/backup_2.zip",
       "displayName": "backup_2.zip",
       "size": 222,
       "lastModified": "2026-04-21T12:00:00.000Z"
     },
     {
-      "key": "kelivo_backups/backup_3.zip",
+      "key": "terrace_backups/backup_3.zip",
       "displayName": "backup_3.zip",
       "size": 999,
       "lastModified": "2026-04-23T12:00:00.000Z"
@@ -153,7 +153,7 @@ void main() {
       await const S3BackupClient().test(_config(server));
 
       expect(seenPaths, [
-        '/backup-bucket/kelivo_backups/.kelivo_backups_manifest.json',
+        '/backup-bucket/terrace_backups/.terrace_backups_manifest.json',
       ]);
     });
 
@@ -169,7 +169,7 @@ void main() {
         server.listen((request) async {
           seenPaths.add(request.uri.path);
           if (request.uri.path ==
-              '/backup-bucket/kelivo_backups/.kelivo_backups_manifest.json') {
+              '/backup-bucket/terrace_backups/.terrace_backups_manifest.json') {
             request.response.statusCode = HttpStatus.ok;
             request.response.headers.contentType = ContentType.json;
             request.response.write(_manifestJson());
@@ -194,7 +194,7 @@ void main() {
         expect(
           seenPaths,
           contains(
-            '/backup-bucket/kelivo_backups/.kelivo_backups_manifest.json',
+            '/backup-bucket/terrace_backups/.terrace_backups_manifest.json',
           ),
         );
       },
@@ -210,7 +210,7 @@ void main() {
 
         server.listen((request) async {
           if (request.uri.path ==
-              '/backup-bucket/kelivo_backups/.kelivo_backups_manifest.json') {
+              '/backup-bucket/terrace_backups/.terrace_backups_manifest.json') {
             request.response.statusCode = HttpStatus.ok;
             request.response.headers.contentType = ContentType.json;
             request.response.write(_manifestJson());
@@ -224,7 +224,7 @@ void main() {
             request.response.write(_legacyListResultXml());
           } else if (request.method == 'PUT' &&
               request.uri.path ==
-                  '/backup-bucket/kelivo_backups/.kelivo_backups_manifest.json') {
+                  '/backup-bucket/terrace_backups/.terrace_backups_manifest.json') {
             await request.drain<void>();
             request.response.statusCode = HttpStatus.ok;
           } else {
@@ -237,7 +237,7 @@ void main() {
 
         expect(items, hasLength(1));
         expect(items.map((e) => e.displayName).toList(), [
-          'kelivo_backup_2026-04-20T09-00-00.123456.zip',
+          'terrace_backup_2026-04-20T09-00-00.123456.zip',
         ]);
       },
     );
@@ -254,7 +254,7 @@ void main() {
         server.listen((request) async {
           if (request.method == 'GET' &&
               request.uri.path ==
-                  '/backup-bucket/kelivo_backups/.kelivo_backups_manifest.json') {
+                  '/backup-bucket/terrace_backups/.terrace_backups_manifest.json') {
             request.response.statusCode = HttpStatus.ok;
             request.response.headers.contentType = ContentType.json;
             request.response.write(_manifestWithGhostsJson());
@@ -269,7 +269,7 @@ void main() {
             request.response.write(_backup3ListResultXml());
           } else if (request.method == 'PUT' &&
               request.uri.path ==
-                  '/backup-bucket/kelivo_backups/.kelivo_backups_manifest.json') {
+                  '/backup-bucket/terrace_backups/.terrace_backups_manifest.json') {
             manifestBody = await utf8.decoder.bind(request).join();
             request.response.statusCode = HttpStatus.ok;
           } else {
@@ -281,7 +281,7 @@ void main() {
         final items = await const S3BackupClient().listObjects(_config(server));
 
         expect(items.map((e) => e.href.pathSegments.join('/')).toList(), [
-          'kelivo_backups/backup_3.zip',
+          'terrace_backups/backup_3.zip',
         ]);
         expect(items.single.size, 333);
         final manifest = jsonDecode(manifestBody!) as Map<String, dynamic>;
@@ -289,7 +289,7 @@ void main() {
         expect(manifestItems, hasLength(1));
         expect(
           manifestItems.single,
-          containsPair('key', 'kelivo_backups/backup_3.zip'),
+          containsPair('key', 'terrace_backups/backup_3.zip'),
         );
         expect(manifestItems.single, containsPair('size', 333));
       },
@@ -307,7 +307,7 @@ void main() {
         server.listen((request) async {
           if (request.method == 'GET' &&
               request.uri.path ==
-                  '/backup-bucket/kelivo_backups/.kelivo_backups_manifest.json') {
+                  '/backup-bucket/terrace_backups/.terrace_backups_manifest.json') {
             request.response.statusCode = HttpStatus.ok;
             request.response.headers.contentType = ContentType.json;
             request.response.write(_manifestWithGhostsJson());
@@ -322,7 +322,7 @@ void main() {
             request.response.write(_emptyListResultXml());
           } else if (request.method == 'PUT' &&
               request.uri.path ==
-                  '/backup-bucket/kelivo_backups/.kelivo_backups_manifest.json') {
+                  '/backup-bucket/terrace_backups/.terrace_backups_manifest.json') {
             manifestBody = await utf8.decoder.bind(request).join();
             request.response.statusCode = HttpStatus.ok;
           } else {
@@ -348,7 +348,7 @@ void main() {
       final continuationTokens = <String?>[];
       server.listen((request) async {
         if (request.uri.path ==
-            '/backup-bucket/kelivo_backups/.kelivo_backups_manifest.json') {
+            '/backup-bucket/terrace_backups/.terrace_backups_manifest.json') {
           request.response.statusCode = HttpStatus.notFound;
           request.response.headers.contentType = ContentType(
             'application',
@@ -392,7 +392,7 @@ void main() {
         server.listen((request) async {
           if (request.method == 'GET' &&
               request.uri.path ==
-                  '/backup-bucket/kelivo_backups/.kelivo_backups_manifest.json') {
+                  '/backup-bucket/terrace_backups/.terrace_backups_manifest.json') {
             request.response.statusCode = HttpStatus.ok;
             request.response.headers.contentType = ContentType.json;
             request.response.write(_manifestWithGhostsJson());
@@ -407,7 +407,7 @@ void main() {
             request.response.write(_backup3ListResultXml());
           } else if (request.method == 'PUT' &&
               request.uri.path ==
-                  '/backup-bucket/kelivo_backups/.kelivo_backups_manifest.json') {
+                  '/backup-bucket/terrace_backups/.terrace_backups_manifest.json') {
             await request.drain<void>();
             request.response.statusCode = HttpStatus.forbidden;
             request.response.headers.contentType = ContentType(
@@ -451,7 +451,7 @@ void main() {
         seenPaths.add(request.uri.path);
         if (request.method == 'GET' &&
             request.uri.path ==
-                '/backup-bucket/kelivo_backups/.kelivo_backups_manifest.json') {
+                '/backup-bucket/terrace_backups/.terrace_backups_manifest.json') {
           request.response.statusCode = HttpStatus.notFound;
           request.response.headers.contentType = ContentType(
             'application',
@@ -460,12 +460,12 @@ void main() {
           );
           request.response.write(_noSuchKeyXml());
         } else if (request.method == 'PUT' &&
-            request.uri.path == '/backup-bucket/kelivo_backups/demo.zip') {
+            request.uri.path == '/backup-bucket/terrace_backups/demo.zip') {
           await request.drain<void>();
           request.response.statusCode = HttpStatus.ok;
         } else if (request.method == 'PUT' &&
             request.uri.path ==
-                '/backup-bucket/kelivo_backups/.kelivo_backups_manifest.json') {
+                '/backup-bucket/terrace_backups/.terrace_backups_manifest.json') {
           manifestBody = await utf8.decoder.bind(request).join();
           request.response.statusCode = HttpStatus.ok;
         } else {
@@ -475,7 +475,7 @@ void main() {
       });
 
       final tmpDir = await Directory.systemTemp.createTemp(
-        'kelivo_s3_manifest_upload_',
+        'terrace_s3_manifest_upload_',
       );
       addTearDown(() async {
         if (await tmpDir.exists()) {
@@ -487,15 +487,15 @@ void main() {
 
       await const S3BackupClient().uploadFile(
         _config(server),
-        key: 'kelivo_backups/demo.zip',
+        key: 'terrace_backups/demo.zip',
         file: file,
       );
 
       expect(
         seenPaths,
-        contains('/backup-bucket/kelivo_backups/.kelivo_backups_manifest.json'),
+        contains('/backup-bucket/terrace_backups/.terrace_backups_manifest.json'),
       );
-      expect(manifestBody, contains('"key":"kelivo_backups/demo.zip"'));
+      expect(manifestBody, contains('"key":"terrace_backups/demo.zip"'));
     });
 
     test(
@@ -511,7 +511,7 @@ void main() {
         server.listen((request) async {
           seenPaths.add(request.uri.path);
           if (request.method == 'GET' &&
-              request.uri.path == '/backup-bucket/kelivo_backups/demo.zip') {
+              request.uri.path == '/backup-bucket/terrace_backups/demo.zip') {
             request.response.statusCode = HttpStatus.ok;
             for (var offset = 0; offset < payload.length; offset += 4096) {
               final end = (offset + 4096).clamp(0, payload.length).toInt();
@@ -525,7 +525,7 @@ void main() {
         });
 
         final tmpDir = await Directory.systemTemp.createTemp(
-          'kelivo_s3_download_',
+          'terrace_s3_download_',
         );
         addTearDown(() async {
           if (await tmpDir.exists()) {
@@ -536,11 +536,11 @@ void main() {
         final destination = File('${tmpDir.path}/demo.zip');
         await const S3BackupClient().downloadToFile(
           _config(server),
-          key: 'kelivo_backups/demo.zip',
+          key: 'terrace_backups/demo.zip',
           destination: destination,
         );
 
-        expect(seenPaths, contains('/backup-bucket/kelivo_backups/demo.zip'));
+        expect(seenPaths, contains('/backup-bucket/terrace_backups/demo.zip'));
         expect(await destination.readAsBytes(), payload);
       },
     );
@@ -559,7 +559,7 @@ void main() {
           requestCount += 1;
           seenPaths.add(request.uri.path);
           if (request.uri.path ==
-              '/backup-bucket/kelivo_backups/.kelivo_backups_manifest.json') {
+              '/backup-bucket/terrace_backups/.terrace_backups_manifest.json') {
             request.response.statusCode = HttpStatus.notFound;
             request.response.headers.contentType = ContentType(
               'application',
@@ -585,13 +585,13 @@ void main() {
 
         expect(requestCount, 2);
         expect(seenPaths, [
-          '/backup-bucket/kelivo_backups/.kelivo_backups_manifest.json',
+          '/backup-bucket/terrace_backups/.terrace_backups_manifest.json',
           '/backup-bucket',
         ]);
         expect(items, hasLength(1));
         expect(
           items.single.displayName,
-          'kelivo_backup_2026-04-22T10-11-12.123456.zip',
+          'terrace_backup_2026-04-22T10-11-12.123456.zip',
         );
       },
     );
@@ -608,7 +608,7 @@ void main() {
         server.listen((request) async {
           paths.add(request.uri.path);
           if (request.uri.path ==
-              '/backup-bucket/kelivo_backups/.kelivo_backups_manifest.json') {
+              '/backup-bucket/terrace_backups/.terrace_backups_manifest.json') {
             request.response.statusCode = HttpStatus.notFound;
             request.response.headers.contentType = ContentType(
               'application',
@@ -641,7 +641,7 @@ void main() {
         final items = await const S3BackupClient().listObjects(_config(server));
 
         expect(paths, [
-          '/backup-bucket/kelivo_backups/.kelivo_backups_manifest.json',
+          '/backup-bucket/terrace_backups/.terrace_backups_manifest.json',
           '/backup-bucket',
           '/backup-bucket/',
         ]);
@@ -673,7 +673,7 @@ void main() {
         await const S3BackupClient().test(_config(server));
 
         expect(paths, [
-          '/backup-bucket/kelivo_backups/.kelivo_backups_manifest.json',
+          '/backup-bucket/terrace_backups/.terrace_backups_manifest.json',
         ]);
       },
     );
@@ -688,7 +688,7 @@ void main() {
       server.listen((request) async {
         requestCount += 1;
         if (request.uri.path ==
-            '/backup-bucket/kelivo_backups/.kelivo_backups_manifest.json') {
+            '/backup-bucket/terrace_backups/.terrace_backups_manifest.json') {
           request.response.statusCode = HttpStatus.notFound;
           request.response.headers.contentType = ContentType(
             'application',
@@ -736,7 +736,7 @@ void main() {
         paths.add(request.uri.path);
         if (request.method == 'GET' &&
             request.uri.path ==
-                '/backup-bucket/kelivo_backups/.kelivo_backups_manifest.json') {
+                '/backup-bucket/terrace_backups/.terrace_backups_manifest.json') {
           request.response.statusCode = HttpStatus.notFound;
           request.response.headers.contentType = ContentType(
             'application',
@@ -768,12 +768,12 @@ void main() {
         bucket: 'backup-bucket',
         accessKeyId: 'test-access-key',
         secretAccessKey: 'test-secret-key',
-        prefix: 'kelivo_backups',
+        prefix: 'terrace_backups',
         pathStyle: true,
       );
 
       final tmpDir = await Directory.systemTemp.createTemp(
-        'kelivo_s3_endpoint_dedupe_',
+        'terrace_s3_endpoint_dedupe_',
       );
       addTearDown(() async {
         if (await tmpDir.exists()) {
@@ -785,7 +785,7 @@ void main() {
 
       await const S3BackupClient().uploadFile(
         cfg,
-        key: 'kelivo_backups/demo.zip',
+        key: 'terrace_backups/demo.zip',
         file: file,
       );
       await const S3BackupClient().test(cfg);
@@ -794,15 +794,15 @@ void main() {
       expect(
         paths,
         containsAll([
-          '/backup-bucket/kelivo_backups/.kelivo_backups_manifest.json',
-          '/backup-bucket/kelivo_backups/demo.zip',
+          '/backup-bucket/terrace_backups/.terrace_backups_manifest.json',
+          '/backup-bucket/terrace_backups/demo.zip',
           '/backup-bucket',
         ]),
       );
       expect(paths, isNot(contains('/backup-bucket/backup-bucket')));
       expect(
         paths,
-        isNot(contains('/backup-bucket/backup-bucket/kelivo_backups/demo.zip')),
+        isNot(contains('/backup-bucket/backup-bucket/terrace_backups/demo.zip')),
       );
     });
   });

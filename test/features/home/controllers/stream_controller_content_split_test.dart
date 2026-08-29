@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/chat_api_service.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/features/chat/widgets/chat_message_widget.dart'
+import 'package:Terrace/core/models/chat_message.dart';
+import 'package:Terrace/core/providers/settings_provider.dart';
+import 'package:Terrace/core/services/api/chat_api_service.dart';
+import 'package:Terrace/core/services/chat/chat_service.dart';
+import 'package:Terrace/features/chat/widgets/chat_message_widget.dart'
     show ToolUIPart;
-import 'package:Kelivo/features/home/controllers/stream_controller.dart';
+import 'package:Terrace/features/home/controllers/stream_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> _waitForSettingsLoad() async {
@@ -253,7 +253,7 @@ void main() {
           {
             'id': 'tool-1',
             'name': 'search_web',
-            'arguments': {'query': 'Kelivo'},
+            'arguments': {'query': 'Terrace'},
             'content': null,
           },
         ],

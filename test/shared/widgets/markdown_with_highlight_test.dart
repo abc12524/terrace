@@ -1,14 +1,14 @@
 import 'dart:async';
 
-import 'package:Kelivo/features/chat/pages/image_viewer_page.dart';
-import 'package:Kelivo/shared/widgets/markdown_with_highlight.dart';
-import 'package:Kelivo/shared/widgets/export_capture_scope.dart';
-import 'package:Kelivo/shared/widgets/mermaid_image_cache.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/theme/palettes.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
+import 'package:Terrace/features/chat/pages/image_viewer_page.dart';
+import 'package:Terrace/shared/widgets/markdown_with_highlight.dart';
+import 'package:Terrace/shared/widgets/export_capture_scope.dart';
+import 'package:Terrace/shared/widgets/mermaid_image_cache.dart';
+import 'package:Terrace/core/providers/settings_provider.dart';
+import 'package:Terrace/icons/lucide_adapter.dart';
+import 'package:Terrace/l10n/app_localizations.dart';
+import 'package:Terrace/theme/palettes.dart';
+import 'package:Terrace/theme/theme_factory.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -3186,7 +3186,7 @@ press5
       _markdownHarness('''
 <p>同一个 HTML 段落里的第一行<br>这里应该换到第二行。</p>
 
-这里是普通 Markdown 链接：[Kelivo GitHub](https://github.com/kelivo/Kelivo)
+这里是普通 Markdown 链接：[Terrace GitHub](https://github.com/terrace/Terrace)
 '''),
     );
     await tester.pump();

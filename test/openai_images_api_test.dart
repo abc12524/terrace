@@ -5,8 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/chat_api_service.dart';
+import 'package:Terrace/core/providers/settings_provider.dart';
+import 'package:Terrace/core/services/api/chat_api_service.dart';
 
 ProviderConfig _openAiConfig(String baseUrl, {bool useResponseApi = false}) {
   return ProviderConfig(
@@ -230,7 +230,7 @@ void main() {
         late String contentType;
         late Map<String, dynamic> requestBody;
         final tempDir = await Directory.systemTemp.createTemp(
-          'kelivo_openai_image_chat_route_',
+          'terrace_openai_image_chat_route_',
         );
         addTearDown(() async {
           if (await tempDir.exists()) {
@@ -288,7 +288,7 @@ void main() {
       late String contentType;
       late String requestBody;
       final tempDir = await Directory.systemTemp.createTemp(
-        'kelivo_openai_image_edit_',
+        'terrace_openai_image_edit_',
       );
       addTearDown(() async {
         if (await tempDir.exists()) {
@@ -343,7 +343,7 @@ void main() {
     test('sets jpeg content type for jpg image edit uploads', () async {
       late String requestBody;
       final tempDir = await Directory.systemTemp.createTemp(
-        'kelivo_openai_jpeg_edit_',
+        'terrace_openai_jpeg_edit_',
       );
       addTearDown(() async {
         if (await tempDir.exists()) {
@@ -462,7 +462,7 @@ void main() {
     test('saves base64 image responses with requested output format', () async {
       late Map<String, dynamic> requestBody;
       final tempDir = await Directory.systemTemp.createTemp(
-        'kelivo_openai_b64_output_',
+        'terrace_openai_b64_output_',
       );
       final previousPathProvider = PathProviderPlatform.instance;
       PathProviderPlatform.instance = _FakePathProviderPlatform(tempDir.path);
@@ -517,7 +517,7 @@ void main() {
       'throws instead of rendering null when base64 image save fails',
       () async {
         final tempDir = await Directory.systemTemp.createTemp(
-          'kelivo_openai_b64_failure_',
+          'terrace_openai_b64_failure_',
         );
         final previousPathProvider = PathProviderPlatform.instance;
         PathProviderPlatform.instance = _FakePathProviderPlatform(tempDir.path);
@@ -659,7 +659,7 @@ void main() {
   group('OpenAI Responses image generation', () {
     test('renders partial image when completed output is empty', () async {
       final tempDir = await Directory.systemTemp.createTemp(
-        'kelivo_openai_responses_partial_image_',
+        'terrace_openai_responses_partial_image_',
       );
       final previousPathProvider = PathProviderPlatform.instance;
       PathProviderPlatform.instance = _FakePathProviderPlatform(tempDir.path);

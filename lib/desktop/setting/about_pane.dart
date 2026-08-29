@@ -166,21 +166,21 @@ class _DesktopAboutPaneState extends State<DesktopAboutPane> {
                   _DeskNavRow(
                     icon: lucide.Lucide.Earth,
                     label: l10n.aboutPageWebsite,
-                    onTap: () => _openUrl('https://kelivo.psycheas.top/'),
+                    onTap: () => _openUrl('https://terrace.psycheas.top/'),
                   ),
                   const _DeskRowDivider(),
                   _DeskNavRowSvg(
                     svgAsset: 'assets/icons/github.svg',
                     label: l10n.aboutPageGithub,
                     onTap: () =>
-                        _openUrl('https://github.com/Chevey339/kelivo'),
+                        _openUrl('https://github.com/Chevey339/terrace'),
                   ),
                   const _DeskRowDivider(),
                   _DeskNavRow(
                     icon: lucide.Lucide.FileText,
                     label: l10n.aboutPageLicense,
                     onTap: () => _openUrl(
-                      'https://github.com/Chevey339/kelivo/blob/master/LICENSE',
+                      'https://github.com/Chevey339/terrace/blob/master/LICENSE',
                     ),
                   ),
                   const _DeskRowDivider(),
@@ -577,7 +577,7 @@ Future<void> _showSponsorDesktopDialog(BuildContext context) async {
   final cs = Theme.of(context).colorScheme;
   final l10n = AppLocalizations.of(context)!;
   final isDark = Theme.of(context).brightness == Brightness.dark;
-  const afdianUrl = 'https://afdian.com/a/kelivo';
+  const afdianUrl = 'https://afdian.com/a/terrace';
   final wechatQrUrl = isDark
       ? 'https://c.img.dasctf.com/LightPicture/2025/10/ee10ae78acbd01f3.png'
       : 'https://c.img.dasctf.com/LightPicture/2025/10/6ba60ac0f2f8e2b4.png';

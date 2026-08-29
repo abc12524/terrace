@@ -3,8 +3,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/chat_api_service.dart';
+import 'package:Terrace/core/providers/settings_provider.dart';
+import 'package:Terrace/core/services/api/chat_api_service.dart';
 
 ProviderConfig _geminiConfig(String baseUrl) {
   return ProviderConfig(
@@ -236,7 +236,7 @@ void main() {
 
     test('keeps image parts in live tool-call continuation contents', () async {
       final dir = await Directory.systemTemp.createTemp(
-        'kelivo_gemini_tool_img_',
+        'terrace_gemini_tool_img_',
       );
       addTearDown(() async {
         if (await dir.exists()) {

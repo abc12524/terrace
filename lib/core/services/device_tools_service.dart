@@ -83,7 +83,7 @@ class DeviceToolsService {
           "frequency": {"type": "integer", "description": "Frequency in Hz for tone mode (200-3000)"},
           "duration_ms": {"type": "integer", "description": "Duration in ms for tone mode (50-5000)"},
           "volume": {"type": "number", "description": "Volume 0.0-1.0"},
-          "url": {"type": "string", "description": "Audio URL for audio_url mode. Supports http/https remote URLs and file:/// local paths, e.g. file:///data/user/0/com.psyche.kelivo/recording.wav"},
+          "url": {"type": "string", "description": "Audio URL for audio_url mode. Supports http/https remote URLs and file:/// local paths, e.g. file:///data/user/0/com.terrace/recording.wav"},
           "stream_type": {"type": "string", "enum": ["notification","alarm","music","ring"], "description": "Audio stream type (default notification)"},
         },
         ["mode"],
@@ -92,12 +92,12 @@ class DeviceToolsService {
         "execute_python",
         "Execute Python code on-device via embedded Python 3.13. Supports: code (run snippet), script (run script file), pip (install packages), info (query environment).\n"
             "Example: execute_python with action=code, code=\"print(hello)\"\n"
-            "Or action=script, path=\"/data/user/0/com.psyche.kelivo/script.py\" to run a local Python script.\n"
+            "Or action=script, path=\"/data/user/0/com.terrace/script.py\" to run a local Python script.\n"
             "Or action=pip, packages=\"requests\" to install a package.",
         {
           "action": {"type": "string", "enum": ["code","pip","info","script"], "description": "code=run code, script=run script file, pip=install packages, info=query env"},
           "code": {"type": "string", "description": "Python code to execute (for action=code)"},
-          "path": {"type": "string", "description": "Python script file path (for action=script), e.g. /data/user/0/com.psyche.kelivo/script.py"},
+          "path": {"type": "string", "description": "Python script file path (for action=script), e.g. /data/user/0/com.terrace/script.py"},
           "packages": {"type": "string", "description": "Package names to pip install, space-separated (for action=pip)"},
         },
         ["action"],

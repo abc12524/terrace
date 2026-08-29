@@ -7,7 +7,7 @@ import 'package:html/dom.dart' as dom;
 import 'package:html2md/html2md.dart' as html2md;
 import 'package:mcp_client/mcp_client.dart' as mcp;
 
-/// @kelivo/fetch — In-memory MCP server engine and transport (Flutter/Dart)
+/// @terrace/fetch — In-memory MCP server engine and transport (Flutter/Dart)
 ///
 /// Provides four tools:
 /// - fetch_html     → returns raw HTML text
@@ -20,14 +20,14 @@ import 'package:mcp_client/mcp_client.dart' as mcp;
 /// isolate as the Flutter app and connect to a standard mcp.Client via an
 /// in-memory ClientTransport.
 
-class KelivoFetchRequestPayload {
+class TerraceFetchRequestPayload {
   final Uri url;
   final Map<String, String> headers;
 
-  KelivoFetchRequestPayload({required this.url, Map<String, String>? headers})
+  TerraceFetchRequestPayload({required this.url, Map<String, String>? headers})
     : headers = headers ?? const {};
 
-  static KelivoFetchRequestPayload parse(Object? args) {
+  static TerraceFetchRequestPayload parse(Object? args) {
     if (args is! Map) {
       throw ArgumentError(
         'Invalid arguments: expected object with url[, headers]',
@@ -47,15 +47,15 @@ class KelivoFetchRequestPayload {
         headers[k.toString()] = v.toString();
       });
     }
-    return KelivoFetchRequestPayload(url: uri, headers: headers);
+    return TerraceFetchRequestPayload(url: uri, headers: headers);
   }
 }
 
-class KelivoFetcher {
+class TerraceFetcher {
   static const _defaultUA =
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
-  static Future<http.Response> _fetch(KelivoFetchRequestPayload payload) async {
+  static Future<http.Response> _fetch(TerraceFetchRequestPayload payload) async {
     try {
       final merged = <String, String>{
         'User-Agent': _defaultUA,
@@ -74,7 +74,7 @@ class KelivoFetcher {
   }
 
   static Future<Map<String, dynamic>> html(
-    KelivoFetchRequestPayload payload,
+    TerraceFetchRequestPayload payload,
   ) async {
     try {
       final resp = await _fetch(payload);
@@ -86,7 +86,7 @@ class KelivoFetcher {
   }
 
   static Future<Map<String, dynamic>> json(
-    KelivoFetchRequestPayload payload,
+    TerraceFetchRequestPayload payload,
   ) async {
     try {
       final resp = await _fetch(payload);
@@ -99,7 +99,7 @@ class KelivoFetcher {
   }
 
   static Future<Map<String, dynamic>> txt(
-    KelivoFetchRequestPayload payload,
+    TerraceFetchRequestPayload payload,
   ) async {
     try {
       final resp = await _fetch(payload);
@@ -115,7 +115,7 @@ class KelivoFetcher {
   }
 
   static Future<Map<String, dynamic>> markdown(
-    KelivoFetchRequestPayload payload,
+    TerraceFetchRequestPayload payload,
   ) async {
     try {
       final resp = await _fetch(payload);
@@ -144,8 +144,8 @@ class KelivoFetcher {
   };
 }
 
-/// Minimal JSON-RPC server for MCP that serves @kelivo/fetch tools.
-class KelivoFetchMcpServerEngine {
+/// Minimal JSON-RPC server for MCP that serves @terrace/fetch tools.
+class TerraceFetchMcpServerEngine {
   bool _closed = false;
 
   Future<dynamic> handleMessage(dynamic message) async {
@@ -179,7 +179,7 @@ class KelivoFetchMcpServerEngine {
           return _ok(
             id,
             result: {
-              'serverInfo': {'name': '@kelivo/fetch', 'version': '0.1.0'},
+              'serverInfo': {'name': '@terrace/fetch', 'version': '0.1.0'},
               'protocolVersion': mcp.McpProtocol.defaultVersion,
               // Only tools capability is advertised for this minimal server
               'capabilities': {
@@ -197,24 +197,24 @@ class KelivoFetchMcpServerEngine {
               ? (params['arguments'] as Map).cast<String, dynamic>()
               : <String, dynamic>{};
 
-          KelivoFetchRequestPayload payload;
+          TerraceFetchRequestPayload payload;
           try {
-            payload = KelivoFetchRequestPayload.parse(arguments);
+            payload = TerraceFetchRequestPayload.parse(arguments);
           } catch (e) {
-            return _ok(id, result: KelivoFetcher._err(e.toString()));
+            return _ok(id, result: TerraceFetcher._err(e.toString()));
           }
 
           if (name == 'fetch_html') {
-            return _ok(id, result: await KelivoFetcher.html(payload));
+            return _ok(id, result: await TerraceFetcher.html(payload));
           }
           if (name == 'fetch_markdown') {
-            return _ok(id, result: await KelivoFetcher.markdown(payload));
+            return _ok(id, result: await TerraceFetcher.markdown(payload));
           }
           if (name == 'fetch_txt') {
-            return _ok(id, result: await KelivoFetcher.txt(payload));
+            return _ok(id, result: await TerraceFetcher.txt(payload));
           }
           if (name == 'fetch_json') {
-            return _ok(id, result: await KelivoFetcher.json(payload));
+            return _ok(id, result: await TerraceFetcher.json(payload));
           }
           return _error(id, code: -32101, message: 'Tool not found: $name');
 
@@ -292,13 +292,13 @@ class KelivoFetchMcpServerEngine {
 }
 
 /// In-memory ClientTransport that directly invokes the local server engine.
-class KelivoInMemoryClientTransport implements mcp.ClientTransport {
-  final KelivoFetchMcpServerEngine _server;
+class TerraceInMemoryClientTransport implements mcp.ClientTransport {
+  final TerraceFetchMcpServerEngine _server;
   final _messageController = StreamController<dynamic>.broadcast();
   final _closeCompleter = Completer<void>();
   bool _closed = false;
 
-  KelivoInMemoryClientTransport(this._server);
+  TerraceInMemoryClientTransport(this._server);
 
   @override
   Stream<dynamic> get onMessage => _messageController.stream;

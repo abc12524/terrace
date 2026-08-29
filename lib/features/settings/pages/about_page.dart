@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Terrace/theme/app_font_weights.dart';
 
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -342,7 +342,7 @@ class _AboutPageState extends State<AboutPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Kelivo',
+                            'Terrace',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: AppFontWeights.semibold,
@@ -400,7 +400,7 @@ class _AboutPageState extends State<AboutPage> {
                 icon: Lucide.Earth,
                 label: l10n.aboutPageWebsite,
                 onTap: () async {
-                  final uri = Uri.parse('https://kelivo.psycheas.top/');
+                  final uri = Uri.parse('https://terrace.psycheas.top/');
                   if (!await launchUrl(uri, mode: LaunchMode.platformDefault)) {
                     await launchUrl(uri, mode: LaunchMode.externalApplication);
                   }
@@ -411,7 +411,7 @@ class _AboutPageState extends State<AboutPage> {
                 context,
                 svgAsset: 'assets/icons/github.svg',
                 label: l10n.aboutPageGithub,
-                onTap: () => _openUrl('https://github.com/Chevey339/kelivo'),
+                onTap: () => _openUrl('https://github.com/Chevey339/terrace'),
               ),
               _iosDivider(context),
               _iosNavRow(
@@ -419,7 +419,7 @@ class _AboutPageState extends State<AboutPage> {
                 icon: Lucide.FileText,
                 label: l10n.aboutPageLicense,
                 onTap: () => _openUrl(
-                  'https://github.com/Chevey339/kelivo/blob/master/LICENSE',
+                  'https://github.com/Chevey339/terrace/blob/master/LICENSE',
                 ),
               ),
               _iosDivider(context),

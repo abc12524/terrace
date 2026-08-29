@@ -55,7 +55,7 @@ class S3BackupProvider extends ChangeNotifier {
       } catch (_) {}
     }
     if (!await dir.exists()) {
-      dir = await Directory.systemTemp.createTemp('kelivo_tmp_');
+      dir = await Directory.systemTemp.createTemp('terrace_tmp_');
     }
     return dir;
   }

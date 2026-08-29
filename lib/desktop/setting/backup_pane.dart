@@ -94,7 +94,7 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
       url: _url.text.trim(),
       username: _username.text.trim(),
       password: _password.text,
-      path: _path.text.trim().isEmpty ? 'kelivo_backups' : _path.text.trim(),
+      path: _path.text.trim().isEmpty ? 'terrace_backups' : _path.text.trim(),
       userAgent: _webDavUserAgent.text.trim(),
       includeChats: _includeChats,
       includeFiles: _includeFiles,
@@ -126,7 +126,7 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
       password: password ?? _password.text,
       path:
           path ??
-          (_path.text.trim().isEmpty ? 'kelivo_backups' : _path.text.trim()),
+          (_path.text.trim().isEmpty ? 'terrace_backups' : _path.text.trim()),
       userAgent: userAgent ?? _webDavUserAgent.text.trim(),
       includeChats: includeChats ?? _includeChats,
       includeFiles: includeFiles ?? _includeFiles,
@@ -146,7 +146,7 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
       secretAccessKey: _s3SecretAccessKey.text,
       sessionToken: _s3SessionToken.text,
       prefix: _s3Prefix.text.trim().isEmpty
-          ? 'kelivo_backups'
+          ? 'terrace_backups'
           : _s3Prefix.text.trim(),
       pathStyle: _s3PathStyle,
       userAgent: _s3UserAgent.text.trim(),
@@ -190,7 +190,7 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
       prefix:
           prefix ??
           (_s3Prefix.text.trim().isEmpty
-              ? 'kelivo_backups'
+              ? 'terrace_backups'
               : _s3Prefix.text.trim()),
       pathStyle: pathStyle ?? _s3PathStyle,
       userAgent: userAgent ?? _s3UserAgent.text.trim(),
@@ -441,7 +441,7 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
                           style: TextStyle(fontSize: 14),
                           decoration: _deskInputDecoration(
                             context,
-                          ).copyWith(hintText: 'kelivo_backups'),
+                          ).copyWith(hintText: 'terrace_backups'),
                           onChanged: (v) => _applyPartial(path: v),
                         ),
                       ),
@@ -694,7 +694,7 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
                           style: TextStyle(fontSize: 14),
                           decoration: _deskInputDecoration(
                             context,
-                          ).copyWith(hintText: 'kelivo_backups'),
+                          ).copyWith(hintText: 'terrace_backups'),
                           onChanged: (v) => _applyS3Partial(prefix: v),
                         ),
                       ),

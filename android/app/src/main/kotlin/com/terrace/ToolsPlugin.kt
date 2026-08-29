@@ -1,4 +1,4 @@
-package com.psyche.kelivo
+package com.terrace
 
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel

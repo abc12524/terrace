@@ -7,9 +7,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:Kelivo/core/models/backup.dart';
-import 'package:Kelivo/core/services/backup/data_sync.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
+import 'package:Terrace/core/models/backup.dart';
+import 'package:Terrace/core/services/backup/data_sync.dart';
+import 'package:Terrace/core/services/chat/chat_service.dart';
 
 class _FakePathProviderPlatform extends PathProviderPlatform {
   _FakePathProviderPlatform(this.root);
@@ -34,7 +34,7 @@ void main() {
     late Directory root;
 
     setUp(() async {
-      root = await Directory.systemTemp.createTemp('kelivo_data_sync_test_');
+      root = await Directory.systemTemp.createTemp('terrace_data_sync_test_');
       PathProviderPlatform.instance = _FakePathProviderPlatform(root.path);
       SharedPreferences.setMockInitialValues({'backup_test_key': 'value'});
     });
@@ -58,10 +58,10 @@ void main() {
         await fontFile.writeAsBytes(List<int>.filled(256, 9));
 
         final tmpDir = Directory('${root.path}/tmp');
-        final staleWorkDir = Directory('${tmpDir.path}/kelivo_backup_stale');
+        final staleWorkDir = Directory('${tmpDir.path}/terrace_backup_stale');
         await staleWorkDir.create(recursive: true);
         await File('${staleWorkDir.path}/orphan.zip').writeAsString('old');
-        await File('${tmpDir.path}/kelivo_backup_old.zip').writeAsString('old');
+        await File('${tmpDir.path}/terrace_backup_old.zip').writeAsString('old');
         await File('${tmpDir.path}/_bk_chats.json').writeAsString('{}');
 
         final sync = DataSync(chatService: ChatService());
@@ -71,7 +71,7 @@ void main() {
 
         expect(await staleWorkDir.exists(), isFalse);
         expect(
-          await File('${tmpDir.path}/kelivo_backup_old.zip').exists(),
+          await File('${tmpDir.path}/terrace_backup_old.zip').exists(),
           isFalse,
         );
         expect(await File('${tmpDir.path}/_bk_chats.json').exists(), isFalse);

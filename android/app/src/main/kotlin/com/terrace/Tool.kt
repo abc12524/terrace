@@ -1,4 +1,4 @@
-package com.psyche.kelivo
+package com.terrace
 
 /**
  * Base interface for AI-accessible Android native tools.

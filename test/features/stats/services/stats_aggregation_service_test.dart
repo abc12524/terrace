@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/features/stats/models/stats_models.dart';
-import 'package:Kelivo/features/stats/services/stats_aggregation_service.dart';
+import 'package:Terrace/core/models/chat_message.dart';
+import 'package:Terrace/core/models/conversation.dart';
+import 'package:Terrace/features/stats/models/stats_models.dart';
+import 'package:Terrace/features/stats/services/stats_aggregation_service.dart';
 
 void main() {
   group('StatsAggregationService', () {

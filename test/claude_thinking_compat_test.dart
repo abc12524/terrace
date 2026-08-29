@@ -3,9 +3,9 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/builtin_tools.dart';
-import 'package:Kelivo/core/services/api/chat_api_service.dart';
+import 'package:Terrace/core/providers/settings_provider.dart';
+import 'package:Terrace/core/services/api/builtin_tools.dart';
+import 'package:Terrace/core/services/api/chat_api_service.dart';
 
 ProviderConfig _claudeConfig(
   String baseUrl, {
@@ -732,13 +732,13 @@ event: content_block_start
 data: {"type":"content_block_start","index":0,"content_block":{"type":"server_tool_use","id":"srv_1","name":"web_search","input":{}}}
 
 event: content_block_delta
-data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\\"query\\":\\"kelivo\\"}"}}
+data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\\"query\\":\\"terrace\\"}"}}
 
 event: content_block_stop
 data: {"type":"content_block_stop","index":0}
 
 event: content_block_start
-data: {"type":"content_block_start","index":1,"content_block":{"type":"web_search_tool_result","tool_use_id":"srv_1","content":[{"type":"web_search_result","title":"Kelivo","url":"https://example.com"}]}}
+data: {"type":"content_block_start","index":1,"content_block":{"type":"web_search_tool_result","tool_use_id":"srv_1","content":[{"type":"web_search_result","title":"Terrace","url":"https://example.com"}]}}
 
 event: content_block_stop
 data: {"type":"content_block_stop","index":1}
@@ -774,7 +774,7 @@ data: {"type":"message_stop"}
           config: cfg,
           modelId: 'deepseek-v4-flash',
           messages: const [
-            {'role': 'user', 'content': '搜索一下kelivo'},
+            {'role': 'user', 'content': '搜索一下terrace'},
           ],
           stream: true,
         ).toList();
@@ -884,7 +884,7 @@ data: {"type":"message_stop"}
         ),
         modelId: 'claude-sonnet-4-6',
         messages: const [
-          {'role': 'user', 'content': '查一下 Kelivo'},
+          {'role': 'user', 'content': '查一下 Terrace'},
           {
             'role': 'assistant',
             'content': '\n\n',
@@ -894,7 +894,7 @@ data: {"type":"message_stop"}
                 'type': 'function',
                 'function': {
                   'name': 'lookup',
-                  'arguments': '{"query":"Kelivo"}',
+                  'arguments': '{"query":"Terrace"}',
                 },
                 'metadata': {
                   'anthropic': {
@@ -908,7 +908,7 @@ data: {"type":"message_stop"}
                         'type': 'tool_use',
                         'id': 'toolu_1',
                         'name': 'lookup',
-                        'input': {'query': 'Kelivo'},
+                        'input': {'query': 'Terrace'},
                       },
                     ],
                   },
@@ -982,7 +982,7 @@ event: content_block_start
 data: {"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"toolu_1","name":"lookup","input":{}}}
 
 event: content_block_delta
-data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\\"query\\":\\"Kelivo\\"}"}}
+data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\\"query\\":\\"Terrace\\"}"}}
 
 event: content_block_stop
 data: {"type":"content_block_stop","index":1}
@@ -1030,7 +1030,7 @@ data: {"type":"message_stop"}
               ),
           modelId: 'claude-opus-4-6',
           messages: const [
-            {'role': 'user', 'content': '查一下 Kelivo'},
+            {'role': 'user', 'content': '查一下 Terrace'},
           ],
           tools: const [
             {
@@ -1160,7 +1160,7 @@ data: {"type":"message_stop"}
                   'type': 'function',
                   'function': {
                     'name': 'lookup',
-                    'arguments': '{"query":"Kelivo"}',
+                    'arguments': '{"query":"Terrace"}',
                   },
                   'metadata': {
                     'anthropic': {
@@ -1169,7 +1169,7 @@ data: {"type":"message_stop"}
                           'type': 'tool_use',
                           'id': 'toolu_1',
                           'name': 'lookup',
-                          'input': {'query': 'Kelivo'},
+                          'input': {'query': 'Terrace'},
                         },
                       ],
                     },
@@ -1189,7 +1189,7 @@ data: {"type":"message_stop"}
                           'type': 'tool_use',
                           'id': 'toolu_1',
                           'name': 'lookup',
-                          'input': {'query': 'Kelivo'},
+                          'input': {'query': 'Terrace'},
                         },
                         {
                           'type': 'tool_use',
@@ -1207,7 +1207,7 @@ data: {"type":"message_stop"}
               'role': 'tool',
               'tool_call_id': 'toolu_1',
               'name': 'lookup',
-              'content': '{"result":"Kelivo ok"}',
+              'content': '{"result":"Terrace ok"}',
             },
             {
               'role': 'tool',
@@ -1238,7 +1238,7 @@ data: {"type":"message_stop"}
 
     test('live tool continuation keeps initial user image blocks', () async {
       final dir = await Directory.systemTemp.createTemp(
-        'kelivo_claude_tool_img_',
+        'terrace_claude_tool_img_',
       );
       addTearDown(() async {
         if (await dir.exists()) {

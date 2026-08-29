@@ -61,7 +61,7 @@ class SettingsProvider extends ChangeNotifier {
     'SiliconFlow',
     'Gemini',
     'OpenRouter',
-    'KelivoIN',
+    'TerraceIN',
     'Tensdaq',
     'DeepSeek',
     'AIhubmix',
@@ -1252,7 +1252,7 @@ class SettingsProvider extends ChangeNotifier {
     if (_providerConfigs.isEmpty) {
       // Seed a couple of sensible defaults on first launch, but do not recreate
       // providers implicitly during later reads (e.g., when switching chats).
-      ensureProviderConfig('KelivoIN', defaultName: 'KelivoIN');
+      ensureProviderConfig('TerraceIN', defaultName: 'TerraceIN');
       ensureProviderConfig('Tensdaq', defaultName: 'Tensdaq');
       ensureProviderConfig('SiliconFlow', defaultName: 'SiliconFlow');
       ensureProviderConfig('AIhubmix', defaultName: 'AIhubmix');
@@ -1502,7 +1502,7 @@ class SettingsProvider extends ChangeNotifier {
     if (localPath == null) return;
     final fam = await _registerLocalFont(
       path: localPath,
-      aliasPrefix: alias ?? 'kelivo_local_app',
+      aliasPrefix: alias ?? 'terrace_local_app',
     );
     if (fam == null) {
       await _deleteManagedFontFileIfUnused(localPath);
@@ -1530,7 +1530,7 @@ class SettingsProvider extends ChangeNotifier {
     if (localPath == null) return;
     final fam = await _registerLocalFont(
       path: localPath,
-      aliasPrefix: alias ?? 'kelivo_local_code',
+      aliasPrefix: alias ?? 'terrace_local_code',
     );
     if (fam == null) {
       await _deleteManagedFontFileIfUnused(localPath);
@@ -1601,7 +1601,7 @@ class SettingsProvider extends ChangeNotifier {
 
     // Re-register local fonts if paths are available.
     if (_appFontLocalPath != null && _appFontLocalPath!.isNotEmpty) {
-      final alias = _appFontLocalAlias ?? 'kelivo_local_app';
+      final alias = _appFontLocalAlias ?? 'terrace_local_app';
       final resolvedPath = SandboxPathResolver.fix(_appFontLocalPath!);
       final fam = await _registerLocalFont(
         path: resolvedPath,
@@ -1623,7 +1623,7 @@ class SettingsProvider extends ChangeNotifier {
       }
     }
     if (_codeFontLocalPath != null && _codeFontLocalPath!.isNotEmpty) {
-      final alias = _codeFontLocalAlias ?? 'kelivo_local_code';
+      final alias = _codeFontLocalAlias ?? 'terrace_local_code';
       final resolvedPath = SandboxPathResolver.fix(_codeFontLocalPath!);
       final fam = await _registerLocalFont(
         path: resolvedPath,
@@ -4802,7 +4802,7 @@ class ProviderConfig {
   static String _defaultBase(String key) {
     final k = key.toLowerCase();
     if (k.contains('tensdaq')) return 'https://tensdaq-api.x-aio.com/v1';
-    if (k.contains('kelivoin')) return 'https://text.pollinations.ai/openai';
+    if (k.contains('terracein')) return 'https://text.pollinations.ai/openai';
     if (k.contains('openrouter')) return 'https://openrouter.ai/api/v1';
     if (k.contains('aihubmix')) return 'https://aihubmix.com/v1';
     if (RegExp(r'qwen|aliyun|dashscope').hasMatch(k)) {
@@ -4839,7 +4839,7 @@ class ProviderConfig {
       if (s.contains('gemini') || s.contains('google')) return true;
       if (s.contains('silicon')) return true;
       if (s.contains('openrouter')) return true;
-      if (s.contains('kelivoin')) return true;
+      if (s.contains('terracein')) return true;
       return false; // others disabled by default
     }
 
@@ -4899,13 +4899,13 @@ class ProviderConfig {
           claudePromptCachingEnabled: false,
         );
       case ProviderKind.openai:
-        // Special-case KelivoIN default models and overrides
-        if (lowerKey.contains('kelivoin')) {
+        // Special-case TerraceIN default models and overrides
+        if (lowerKey.contains('terracein')) {
           return ProviderConfig(
             id: key,
             enabled: defaultEnabled(key),
             name: displayName ?? key,
-            apiKey: 'kelivo',
+            apiKey: 'terrace',
             baseUrl: _defaultBase(key),
             providerType: ProviderKind.openai,
             chatPath:

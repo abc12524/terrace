@@ -1,4 +1,4 @@
-package com.psyche.kelivo
+package com.terrace
 
 import com.google.gson.Gson
 import java.io.BufferedReader

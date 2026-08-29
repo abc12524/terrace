@@ -124,7 +124,7 @@ jobs:
           cd build/app/outputs/flutter-apk
           for file in app-*-release.apk; do
             abi=$(echo "$file" | sed -E 's/app-(.*)-release\.apk/\1/')
-            mv "$file" "Kelivo_android_${VERSION}_${abi}.apk"
+            mv "$file" "Terrace_android_${VERSION}_${abi}.apk"
           done
       - name: 🚀 发布到 Release
         if: ${{ github.event.inputs.publish_release == 'true' && github.event.inputs.release_tag != '' }}
@@ -133,25 +133,25 @@ jobs:
           tag_name: ${{ github.event.inputs.release_tag }}
           name: ${{ github.event.inputs.release_tag }}
           prerelease: ${{ github.event.inputs.prerelease }}
-          files: build/app/outputs/flutter-apk/Kelivo_android_*.apk
+          files: build/app/outputs/flutter-apk/Terrace_android_*.apk
 
       - name: 📤 上传构建产物 (arm64-v8a)
         uses: actions/upload-artifact@v4
         with:
           name: Android-arm64-v8a
-          path: build/app/outputs/flutter-apk/Kelivo_android_*_arm64-v8a.apk
+          path: build/app/outputs/flutter-apk/Terrace_android_*_arm64-v8a.apk
 
       - name: 📤 上传构建产物 (armeabi-v7a)
         uses: actions/upload-artifact@v4
         with:
           name: Android-armeabi-v7a
-          path: build/app/outputs/flutter-apk/Kelivo_android_*_armeabi-v7a.apk
+          path: build/app/outputs/flutter-apk/Terrace_android_*_armeabi-v7a.apk
 
       - name: 📤 上传构建产物 (x86_64)
         uses: actions/upload-artifact@v4
         with:
           name: Android-x86_64
-          path: build/app/outputs/flutter-apk/Kelivo_android_*_x86_64.apk
+          path: build/app/outputs/flutter-apk/Terrace_android_*_x86_64.apk
 
   # iOS 构建
   ios:
@@ -199,7 +199,7 @@ jobs:
           cd build/ios/iphoneos
           mkdir Payload
           cp -r Runner.app Payload/
-          zip -r ../../../Kelivo_ios_${VERSION}.ipa Payload
+          zip -r ../../../Terrace_ios_${VERSION}.ipa Payload
       - name: 🚀 发布到 Release
         if: ${{ github.event.inputs.publish_release == 'true' && github.event.inputs.release_tag != '' }}
         uses: softprops/action-gh-release@v2
@@ -207,13 +207,13 @@ jobs:
           tag_name: ${{ github.event.inputs.release_tag }}
           name: ${{ github.event.inputs.release_tag }}
           prerelease: ${{ github.event.inputs.prerelease }}
-          files: Kelivo_ios_*.ipa
+          files: Terrace_ios_*.ipa
 
       - name: 📤 上传构建产物
         uses: actions/upload-artifact@v4
         with:
           name: iOS-IPA
-          path: Kelivo_ios_*.ipa
+          path: Terrace_ios_*.ipa
 
   # macOS 构建
   macos:
@@ -260,16 +260,16 @@ jobs:
         run: |
           brew install create-dmg
           create-dmg \
-            --volname "Kelivo" \
+            --volname "Terrace" \
             --window-pos 200 120 \
             --window-size 800 400 \
             --icon-size 100 \
             --app-drop-link 600 185 \
-            "Kelivo_macos_${VERSION}.dmg" \
-            "build/macos/Build/Products/Release/kelivo.app" || true
+            "Terrace_macos_${VERSION}.dmg" \
+            "build/macos/Build/Products/Release/terrace.app" || true
           # 如果 create-dmg 失败，使用简单方式
-          if [ ! -f "Kelivo_macos_${VERSION}.dmg" ]; then
-            hdiutil create -volname Kelivo -srcfolder build/macos/Build/Products/Release/kelivo.app -ov -format UDZO Kelivo_macos_${VERSION}.dmg
+          if [ ! -f "Terrace_macos_${VERSION}.dmg" ]; then
+            hdiutil create -volname Terrace -srcfolder build/macos/Build/Products/Release/terrace.app -ov -format UDZO Terrace_macos_${VERSION}.dmg
           fi
       - name: 🚀 发布到 Release
         if: ${{ github.event.inputs.publish_release == 'true' && github.event.inputs.release_tag != '' }}
@@ -278,13 +278,13 @@ jobs:
           tag_name: ${{ github.event.inputs.release_tag }}
           name: ${{ github.event.inputs.release_tag }}
           prerelease: ${{ github.event.inputs.prerelease }}
-          files: Kelivo_macos_*.dmg
+          files: Terrace_macos_*.dmg
 
       - name: 📤 上传构建产物
         uses: actions/upload-artifact@v4
         with:
           name: macOS-DMG
-          path: Kelivo_macos_*.dmg
+          path: Terrace_macos_*.dmg
 
   # Windows 构建
   windows:
@@ -342,7 +342,7 @@ jobs:
       - name: 📦 打包 ZIP
         shell: pwsh
         run: |
-          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "Kelivo_windows_$env:VERSION.zip"
+          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "Terrace_windows_$env:VERSION.zip"
       - name: 🔧 安装 Inno Setup
         run: choco install innosetup -y
 
@@ -388,10 +388,10 @@ jobs:
           }
           # 创建 Inno Setup 脚本
           $issContent = @"
-          #define MyAppName "Kelivo"
+          #define MyAppName "Terrace"
           #define MyAppVersion "$env:VERSION"
           #define MyAppPublisher "Psyche"
-          #define MyAppExeName "kelivo.exe"
+          #define MyAppExeName "terrace.exe"
           [Setup]
           AppId={{A7B8C9D0-E1F2-4A5B-8C9D-0E1F2A3B4C5D}}
           AppName={#MyAppName}
@@ -400,7 +400,7 @@ jobs:
           DefaultDirName={autopf}\{#MyAppName}
           DefaultGroupName={#MyAppName}
           OutputDir=.
-          OutputBaseFilename=Kelivo_windows_{#MyAppVersion}_setup
+          OutputBaseFilename=Terrace_windows_{#MyAppVersion}_setup
           Compression=lzma2
           SolidCompression=yes
           WizardStyle=modern
@@ -433,19 +433,19 @@ jobs:
           name: ${{ github.event.inputs.release_tag }}
           prerelease: ${{ github.event.inputs.prerelease }}
           files: |
-            Kelivo_windows_*.zip
-            Kelivo_windows_*_setup.exe
+            Terrace_windows_*.zip
+            Terrace_windows_*_setup.exe
       - name: 📤 上传构建产物 (ZIP)
         uses: actions/upload-artifact@v4
         with:
           name: Windows-ZIP
-          path: Kelivo_windows_*.zip
+          path: Terrace_windows_*.zip
 
       - name: 📤 上传构建产物 (Installer)
         uses: actions/upload-artifact@v4
         with:
           name: Windows-Installer
-          path: Kelivo_windows_*_setup.exe
+          path: Terrace_windows_*_setup.exe
 
   # Linux 构建
   linux:
@@ -499,7 +499,7 @@ jobs:
       - name: 📦 打包 tar.gz
         run: |
           cd build/linux/x64/release/bundle
-          tar -czf ../../../../../Kelivo_linux_${VERSION}.tar.gz .
+          tar -czf ../../../../../Terrace_linux_${VERSION}.tar.gz .
       - name: 📦 创建 AppImage
         run: |
           # 下载 appimagetool
@@ -519,21 +519,21 @@ jobs:
           HERE=${SELF%/*}
           export PATH="${HERE}/usr/bin:${PATH}"
           export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH}"
-          exec "${HERE}/usr/bin/kelivo" "$@"
+          exec "${HERE}/usr/bin/terrace" "$@"
           EOF
           chmod +x AppDir/AppRun
           
           # 创建 desktop 文件
-          cat > AppDir/kelivo.desktop << EOF
+          cat > AppDir/terrace.desktop << EOF
           [Desktop Entry]
-          Name=Kelivo
-          Exec=kelivo
-          Icon=kelivo
+          Name=Terrace
+          Exec=terrace
+          Icon=terrace
           Type=Application
           Categories=Utility;
           EOF
           
-          ICON_SOURCE="linux/kelivo.png"
+          ICON_SOURCE="linux/terrace.png"
           if [ ! -f "$ICON_SOURCE" ]; then
             ICON_SOURCE="assets/app_icon.png"
           fi
@@ -541,50 +541,50 @@ jobs:
             echo "❌ Icon source not found"
             exit 1
           fi
-          install -Dm644 "$ICON_SOURCE" AppDir/kelivo.png
-          install -Dm644 "$ICON_SOURCE" "AppDir/usr/share/icons/hicolor/256x256/apps/kelivo.png"
+          install -Dm644 "$ICON_SOURCE" AppDir/terrace.png
+          install -Dm644 "$ICON_SOURCE" "AppDir/usr/share/icons/hicolor/256x256/apps/terrace.png"
           
           # 构建 AppImage
-          ARCH=x86_64 ./appimagetool AppDir Kelivo_linux_${VERSION}.AppImage
+          ARCH=x86_64 ./appimagetool AppDir Terrace_linux_${VERSION}.AppImage
       - name: 📦 创建 DEB 包
         run: |
           # 创建 DEB 目录结构
           mkdir -p deb/DEBIAN
-          mkdir -p deb/opt/kelivo
+          mkdir -p deb/opt/terrace
           mkdir -p deb/usr/share/applications
           mkdir -p deb/usr/share/icons/hicolor/256x256/apps
           
           # 复制文件
-          cp -r build/linux/x64/release/bundle/* deb/opt/kelivo/
+          cp -r build/linux/x64/release/bundle/* deb/opt/terrace/
           
           # 创建 /usr/bin 软链接
           mkdir -p deb/usr/bin
-          ln -s /opt/kelivo/kelivo deb/usr/bin/kelivo
+          ln -s /opt/terrace/terrace deb/usr/bin/terrace
           
           # 创建 control 文件
           cat > deb/DEBIAN/control << EOF
-          Package: kelivo
+          Package: terrace
           Version: ${VERSION_NUMBER}
           Section: utils
           Priority: optional
           Architecture: amd64
           Maintainer: Psyche <your@email.com>
           Depends: libgtk-3-0, libstdc++6, libglu1-mesa, libgstreamer1.0-0, libgstreamer-plugins-base1.0-0, libglib2.0-0, libc6
-          Description: Kelivo Application
+          Description: Terrace Application
            A Flutter application for Linux
           EOF
           
           # 创建 desktop 文件
-          cat > deb/usr/share/applications/kelivo.desktop << EOF
+          cat > deb/usr/share/applications/terrace.desktop << EOF
           [Desktop Entry]
-          Name=Kelivo
-          Exec=/opt/kelivo/kelivo
-          Icon=kelivo
+          Name=Terrace
+          Exec=/opt/terrace/terrace
+          Icon=terrace
           Type=Application
           Categories=Utility;
           EOF
 
-          ICON_SOURCE="linux/kelivo.png"
+          ICON_SOURCE="linux/terrace.png"
           if [ ! -f "$ICON_SOURCE" ]; then
             ICON_SOURCE="assets/app_icon.png"
           fi
@@ -592,27 +592,27 @@ jobs:
             echo "❌ Icon source not found"
             exit 1
           fi
-          install -Dm644 "$ICON_SOURCE" deb/usr/share/icons/hicolor/256x256/apps/kelivo.png
+          install -Dm644 "$ICON_SOURCE" deb/usr/share/icons/hicolor/256x256/apps/terrace.png
           
           # 创建启动脚本
-          cat > deb/opt/kelivo/kelivo.sh << 'EOF'
+          cat > deb/opt/terrace/terrace.sh << 'EOF'
           #!/bin/bash
           cd "$(dirname "$0")"
-          ./kelivo "$@"
+          ./terrace "$@"
           EOF
-          chmod +x deb/opt/kelivo/kelivo.sh
+          chmod +x deb/opt/terrace/terrace.sh
           
           # 构建 DEB 包
-          dpkg-deb --build deb Kelivo_linux_${VERSION}_amd64.deb
+          dpkg-deb --build deb Terrace_linux_${VERSION}_amd64.deb
       - name: 📦 创建 RPM 包
         run: |
           # 创建 RPM 构建目录
           mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
           
           # 创建源码目录
-          mkdir -p kelivo-${VERSION_NUMBER}
-          cp -r build/linux/x64/release/bundle/* kelivo-${VERSION_NUMBER}/
-          ICON_SOURCE="linux/kelivo.png"
+          mkdir -p terrace-${VERSION_NUMBER}
+          cp -r build/linux/x64/release/bundle/* terrace-${VERSION_NUMBER}/
+          ICON_SOURCE="linux/terrace.png"
           if [ ! -f "$ICON_SOURCE" ]; then
             ICON_SOURCE="assets/app_icon.png"
           fi
@@ -620,15 +620,15 @@ jobs:
             echo "❌ Icon source not found"
             exit 1
           fi
-          cp "$ICON_SOURCE" kelivo-${VERSION_NUMBER}/kelivo.png
-          tar -czf ~/rpmbuild/SOURCES/kelivo-${VERSION_NUMBER}.tar.gz kelivo-${VERSION_NUMBER}
+          cp "$ICON_SOURCE" terrace-${VERSION_NUMBER}/terrace.png
+          tar -czf ~/rpmbuild/SOURCES/terrace-${VERSION_NUMBER}.tar.gz terrace-${VERSION_NUMBER}
           
           # 创建 spec 文件
-          cat > ~/rpmbuild/SPECS/kelivo.spec << EOF
-          Name:           kelivo
+          cat > ~/rpmbuild/SPECS/terrace.spec << EOF
+          Name:           terrace
           Version:        ${VERSION_NUMBER}
           Release:        1%{?dist}
-          Summary:        Kelivo Application
+          Summary:        Terrace Application
           License:        MIT
           Source0:        %{name}-%{version}.tar.gz
           BuildArch:      x86_64
@@ -641,30 +641,30 @@ jobs:
           %setup -q
           
           %install
-          mkdir -p %{buildroot}/opt/kelivo
-          cp -r * %{buildroot}/opt/kelivo/
+          mkdir -p %{buildroot}/opt/terrace
+          cp -r * %{buildroot}/opt/terrace/
           
           mkdir -p %{buildroot}/usr/bin
-          ln -s /opt/kelivo/kelivo %{buildroot}/usr/bin/kelivo
+          ln -s /opt/terrace/terrace %{buildroot}/usr/bin/terrace
           
           mkdir -p %{buildroot}/usr/share/applications
-          cat > %{buildroot}/usr/share/applications/kelivo.desktop << 'DESKTOPEOF'
+          cat > %{buildroot}/usr/share/applications/terrace.desktop << 'DESKTOPEOF'
           [Desktop Entry]
-          Name=Kelivo
-          Exec=/opt/kelivo/kelivo
-          Icon=kelivo
+          Name=Terrace
+          Exec=/opt/terrace/terrace
+          Icon=terrace
           Type=Application
           Categories=Utility;
           DESKTOPEOF
 
           mkdir -p %{buildroot}/usr/share/icons/hicolor/256x256/apps
-          cp kelivo.png %{buildroot}/usr/share/icons/hicolor/256x256/apps/kelivo.png
+          cp terrace.png %{buildroot}/usr/share/icons/hicolor/256x256/apps/terrace.png
           
           %files
-          /opt/kelivo/*
-          /usr/bin/kelivo
-          /usr/share/applications/kelivo.desktop
-          /usr/share/icons/hicolor/256x256/apps/kelivo.png
+          /opt/terrace/*
+          /usr/bin/terrace
+          /usr/share/applications/terrace.desktop
+          /usr/share/icons/hicolor/256x256/apps/terrace.png
           
           %changelog
           * $(date "+%a %b %d %Y") Psyche <your@email.com> - ${VERSION_NUMBER}-1
@@ -672,15 +672,15 @@ jobs:
           EOF
           
           # 构建 RPM
-          rpmbuild -bb ~/rpmbuild/SPECS/kelivo.spec
-          cp ~/rpmbuild/RPMS/x86_64/kelivo-${VERSION_NUMBER}-1.*.rpm Kelivo_linux_${VERSION}.rpm
+          rpmbuild -bb ~/rpmbuild/SPECS/terrace.spec
+          cp ~/rpmbuild/RPMS/x86_64/terrace-${VERSION_NUMBER}-1.*.rpm Terrace_linux_${VERSION}.rpm
       - name: 🔍 RPM 元数据（调试）
         shell: bash
         run: |
           set -euxo pipefail
-          RPM_FILE="Kelivo_linux_${VERSION}.rpm"
+          RPM_FILE="Terrace_linux_${VERSION}.rpm"
           echo "RPM file: ${RPM_FILE}"
-          cp -f ~/rpmbuild/SPECS/kelivo.spec rpm-spec.spec
+          cp -f ~/rpmbuild/SPECS/terrace.spec rpm-spec.spec
           rpm -qp --info "${RPM_FILE}" | tee rpm-info.txt
           rpm -qp --requires "${RPM_FILE}" | tee rpm-requires.txt
           rpm -qp --provides "${RPM_FILE}" | tee rpm-provides.txt
@@ -697,7 +697,7 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          RPM_FILE="Kelivo_linux_${VERSION}.rpm"
+          RPM_FILE="Terrace_linux_${VERSION}.rpm"
           docker run --rm -v "${PWD}:/work" -w /work fedora:43 bash -lc "dnf -y install ./${RPM_FILE}"
       - name: 🚀 发布到 Release
         if: ${{ github.event.inputs.publish_release == 'true' && github.event.inputs.release_tag != '' }}
@@ -707,30 +707,30 @@ jobs:
           name: ${{ github.event.inputs.release_tag }}
           prerelease: ${{ github.event.inputs.prerelease }}
           files: |
-            Kelivo_linux_*.tar.gz
-            Kelivo_linux_*.AppImage
-            Kelivo_linux_*_amd64.deb
-            Kelivo_linux_*.rpm
+            Terrace_linux_*.tar.gz
+            Terrace_linux_*.AppImage
+            Terrace_linux_*_amd64.deb
+            Terrace_linux_*.rpm
       - name: 📤 上传构建产物 (tar.gz)
         uses: actions/upload-artifact@v4
         with:
           name: Linux-tar.gz
-          path: Kelivo_linux_*.tar.gz
+          path: Terrace_linux_*.tar.gz
 
       - name: 📤 上传构建产物 (AppImage)
         uses: actions/upload-artifact@v4
         with:
           name: Linux-AppImage
-          path: Kelivo_linux_*.AppImage
+          path: Terrace_linux_*.AppImage
 
       - name: 📤 上传构建产物 (DEB)
         uses: actions/upload-artifact@v4
         with:
           name: Linux-DEB
-          path: Kelivo_linux_*_amd64.deb
+          path: Terrace_linux_*_amd64.deb
 
       - name: 📤 上传构建产物 (RPM)
         uses: actions/upload-artifact@v4
         with:
           name: Linux-RPM
-          path: Kelivo_linux_*.rpm
+          path: Terrace_linux_*.rpm

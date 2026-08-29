@@ -3,8 +3,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/chat_api_service.dart';
+import 'package:Terrace/core/providers/settings_provider.dart';
+import 'package:Terrace/core/services/api/chat_api_service.dart';
 
 ProviderConfig _openAiConfig(String baseUrl) {
   return ProviderConfig(
@@ -87,7 +87,7 @@ Future<File> _tempPng(String prefix) async {
 void main() {
   group('ChatApiService text-only image filtering', () {
     test('removes OpenAI image_url parts when OCR is inactive', () async {
-      final file = await _tempPng('kelivo_openai_text_only_filter_');
+      final file = await _tempPng('terrace_openai_text_only_filter_');
       final body = await _captureJsonRequest(
         (baseUrl) {
           return ChatApiService.sendMessageStream(
@@ -128,7 +128,7 @@ void main() {
     });
 
     test('removes Claude image blocks when OCR is inactive', () async {
-      final file = await _tempPng('kelivo_claude_text_only_filter_');
+      final file = await _tempPng('terrace_claude_text_only_filter_');
       final body = await _captureJsonRequest(
         (baseUrl) {
           return ChatApiService.sendMessageStream(
@@ -161,7 +161,7 @@ void main() {
     });
 
     test('removes Gemini inline_data parts when OCR is inactive', () async {
-      final file = await _tempPng('kelivo_gemini_text_only_filter_');
+      final file = await _tempPng('terrace_gemini_text_only_filter_');
       final body = await _captureJsonRequest(
         (baseUrl) {
           return ChatApiService.sendMessageStream(

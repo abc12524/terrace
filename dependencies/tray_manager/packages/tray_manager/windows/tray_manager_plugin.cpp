@@ -363,7 +363,7 @@ void TrayManagerPlugin::SetContextMenu(
 void TrayManagerPlugin::PopUpContextMenu(
     const flutter::MethodCall<flutter::EncodableValue>& method_call,
     std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
-  // NOTE: For Kelivo's use case we intentionally do **not** bring the
+  // NOTE: For Terrace's use case we intentionally do **not** bring the
   // main Flutter window to the foreground when showing the tray
   // context menu. Instead we create (once) a hidden helper window
   // that owns the popup menu and receives WM_COMMAND notifications.

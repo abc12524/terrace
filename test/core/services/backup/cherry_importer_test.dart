@@ -8,10 +8,10 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:Kelivo/core/models/backup.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/backup/cherry_importer.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
+import 'package:Terrace/core/models/backup.dart';
+import 'package:Terrace/core/providers/settings_provider.dart';
+import 'package:Terrace/core/services/backup/cherry_importer.dart';
+import 'package:Terrace/core/services/chat/chat_service.dart';
 
 class _FakePathProviderPlatform extends PathProviderPlatform {
   _FakePathProviderPlatform(this.path);
@@ -37,7 +37,7 @@ void main() {
   late Directory tempDir;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('kelivo_cherry_test_');
+    tempDir = await Directory.systemTemp.createTemp('terrace_cherry_test_');
     PathProviderPlatform.instance = _FakePathProviderPlatform(tempDir.path);
     SharedPreferences.setMockInitialValues({});
   });

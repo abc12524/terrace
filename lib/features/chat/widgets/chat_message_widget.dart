@@ -165,7 +165,7 @@ void _replayTextToSpeech(BuildContext context, String text) {
     FlutterError.reportError(
       FlutterErrorDetails(
         exception: StateError('Text-to-speech is unavailable.'),
-        library: 'Kelivo chat message tools',
+        library: 'Terrace chat message tools',
         context: ErrorDescription('while replaying text-to-speech'),
       ),
     );
@@ -178,7 +178,7 @@ void _replayTextToSpeech(BuildContext context, String text) {
         FlutterErrorDetails(
           exception: error,
           stack: stack,
-          library: 'Kelivo chat message tools',
+          library: 'Terrace chat message tools',
           context: ErrorDescription('while replaying text-to-speech'),
         ),
       );

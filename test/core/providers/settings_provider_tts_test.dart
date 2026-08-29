@@ -1,5 +1,5 @@
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/tts/tts_text_selection.dart';
+import 'package:Terrace/core/providers/settings_provider.dart';
+import 'package:Terrace/core/services/tts/tts_text_selection.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

@@ -1,98 +1,100 @@
 <div align="center">
-  <img src="assets/app_icon.png" alt="Kelivo Icon" width="100" />
-  <h1>Kelivo</h1>
+  <img src="assets/app_icon.png" alt="Terrace 图标" width="100" />
+  <h1>Terrace</h1>
 
-A Flutter LLM chat client
+一个基于 Flutter 的跨平台 LLM 聊天客户端
 
   <a href="https://discord.gg/Tb8DyvvV5T" target="_blank">
-    <img src="https://img.shields.io/badge/Join%20our%20Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join Discord"/>
+    <img src="https://img.shields.io/badge/Join%20our%20Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="加入 Discord"/>
   </a>
   <a href="https://qm.qq.com/q/OQaXetKssC" target="_blank" style="margin-left: 6px;">
-    <img src="https://img.shields.io/badge/Join%20QQ%20Group-%230366CC?style=for-the-badge&logo=qq&logoColor=white" alt="Join QQ Group"/>
+    <img src="https://img.shields.io/badge/Join%20QQ%20Group-%230366CC?style=for-the-badge&logo=qq&logoColor=white" alt="加入 QQ 群"/>
   </a>
-
-English | [简体中文](README_ZH_CN.md)
 </div>
 
 <div align="center">
-  <img src="docx/screenshot_1.png" alt="Chat" width="150" />
-  <img src="docx/screenshot_2.png" alt="Model Selection" width="150" />
-  <img src="docx/screenshot_3.png" alt="Tool Calling" width="150" />
-  <img src="docx/screenshot_4.png" alt="Web Search" width="150" />
+  <img src="docx/screenshot_1.png" alt="聊天界面" width="150" />
+  <img src="docx/screenshot_2.png" alt="模型选择" width="150" />
+  <img src="docx/screenshot_3.png" alt="工具调用" width="150" />
+  <img src="docx/screenshot_4.png" alt="网络搜索" width="150" />
 </div>
 
-## 🚀 Download
+> **重命名说明**：本项目由原始仓库重命名而来，已修改应用标识：
+> - **应用名称**：`Terrace`
+> - **Android 包名 / iOS Bundle ID**：`com.terrace`
 
-[![Download on the App Store](https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg)](https://apps.apple.com/us/app/kelivo/id6752122930)
+## 🚀 下载
 
-🔗 [Download Latest Release](https://github.com/Chevey339/kelivo/releases/latest)
+[![Download on the App Store](https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg)](https://apps.apple.com/us/app/terrace/id6752122930)
 
-🔗 [TestFlight](https://testflight.apple.com/join/erbGGykR) Join the beta testing.
+🔗 [下载最新版本](https://github.com/Chevey339/terrace/releases/latest)
 
-## 💖 Sponsors
+🔗 [TestFlight](https://testflight.apple.com/join/erbGGykR) 参与测试版体验。
 
-Thanks to [siliconflow.cn](https://siliconflow.cn) for partnering with us to provide free-to-use models.
+## 💖 赞助
 
-## ✨ Features
+感谢 [siliconflow.cn](https://siliconflow.cn) 与我们合作提供可免费使用的模型。
 
-- 🎨 **Modern Design** - Material You design language with dynamic theme colors (Android 12+)
-- 🌙 **Dark Mode** - Perfect dark theme support to protect your eyes
-- 🌍 **Multi-language** - Supports Chinese and English UI
-- 🖥️ **Cross-platform** - Mobile & Desktop (Android/iOS/Harmony, Windows/macOS/Linux)
-- 🔄 **Multi-provider** - Supports OpenAI, Google Gemini, Anthropic and other major AI providers
-- 🤖 **Custom Assistants** - Create and manage personalized AI assistants
-- 🖼️ **Multi-modal Input** - Supports images, text files, PDF, Word documents and more
-- 📝 **Markdown Rendering** - Full support for code highlighting, LaTeX formulas, tables, etc.
-- 🎙️ **Voice Services** - Built-in system TTS, plus OpenAI / Google Gemini / ElevenLabs voice servers
-- 🛠️ **MCP Support** - Model Context Protocol tool integration
-- 🧰 **Built-in MCP Tools** - Built-in fetch MCP tool
-- 🔍 **Web Search** - Integrates multiple search engines (Bing, DuckDuckGo, Exa, Tavily, Zhipu, LinkUp, Brave, Metaso, SearXNG, Ollama, Jina, Perplexity, Bocha, Serper, Grok)
-- 🧩 **Prompt Variables** - Supports dynamic variables like model name, time, etc.
-- 📤 **QR Code Sharing** - Export and import provider configurations via QR codes
-- 💾 **Data Backup** - Chat history backup and restore support
-- 🌐 **Custom Requests** - Supports custom HTTP headers and request bodies
-- 🔡 **Custom Fonts** - Supports custom fonts (system fonts / Google Fonts)
-- ⚙️ **Android Background Chat** - Continue generating messages in the background (enable in settings)
+## ✨ 功能特性
 
-## 📱 Platform Support
+- 🎨 **现代化设计** - Material You 设计语言，支持动态主题色（Android 12+）
+- 🌙 **深色模式** - 完美适配深色主题，保护您的眼睛
+- 🌍 **多语言支持** - 支持中文和英文界面
+- 🖥️ **多平台支持** - 移动端与桌面端均支持（Android / iOS / Harmony、Windows / macOS / Linux）
+- 🔄 **多供应商支持** - 支持 OpenAI、Google Gemini、Anthropic 等主流 AI 供应商
+- 🤖 **自定义助手** - 创建和管理个性化 AI 助手
+- 🖼️ **多模态输入** - 支持图片、文本文档、PDF、Word 文档等多种格式
+- 📝 **Markdown 渲染** - 完整支持代码高亮、LaTeX 公式、表格等
+- 🎙️ **语音服务** - 内置系统 TTS，同时支持 OpenAI / Google Gemini / ElevenLabs 语音服务器
+- 🛠️ **MCP 支持** - Model Context Protocol 工具集成
+- 🧰 **内置 MCP 工具** - 内置 fetch MCP 工具
+- 🔍 **网络搜索** - 集成多种搜索引擎（Bing、DuckDuckGo、Exa、Tavily、智谱、LinkUp、Brave、Metaso、SearXNG、Ollama、Jina、Perplexity、Bocha、Serper、Grok）
+- 🧩 **提示词变量** - 支持模型名称、时间等动态变量
+- 📤 **二维码分享** - 通过二维码导出和导入供应商配置
+- 💾 **数据备份** - 支持聊天记录备份和恢复
+- 🌐 **自定义请求** - 支持自定义 HTTP 请求头和请求体
+- 🔡 **自定义字体** - 支持自定义字体（系统字体 / Google Fonts）
+- ⚙️ **Android 后台生成对话** - 可在后台持续生成消息（可在设置中开启）
+
+## 📱 平台支持
 
 - ✅ Android
 - ✅ iOS
-- ✅ Harmony ([kelivo-ohos](https://github.com/Chevey339/kelivo-ohos))
+- ✅ Harmony（[terrace-ohos](https://github.com/Chevey339/terrace-ohos)）
 - ✅ Windows
 - ✅ macOS
 - ✅ Linux
 
-## 🤝 Contributing
+## 🤝 贡献指南
 
-Pull Requests and Issues are welcome!
+欢迎提交 Pull Request 或创建 Issue！
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+1. Fork 本仓库
+2. 创建您的特性分支（`git checkout -b feature/AmazingFeature`）
+3. 提交您的更改（`git commit -m 'Add some AmazingFeature'`）
+4. 推送到分支（`git push origin feature/AmazingFeature`）
+5. 开启一个 Pull Request
 
-## ❤️ Acknowledgements
+## ❤️ 致谢
 
-Special thanks to the [RikkaHub](https://github.com/re-ovo/rikkahub) project for UI design inspiration. Kelivo's interface design is heavily inspired by RikkaHub's beautiful and practical design.
+特别感谢 [RikkaHub](https://github.com/re-ovo/rikkahub) 项目提供的 UI 设计灵感。Terrace 的界面设计深受 RikkaHub 优美且实用的设计启发。
 
 ## ⭐ Star History
 
-If you like this project, please give it a Star ⭐
+如果你喜欢这个项目，可以给个 Star ⭐
 
-[![Star History Chart](https://api.star-history.com/svg?repos=Chevey339/kelivo&type=Date)](https://star-history.com/#Chevey339/kelivo&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=Chevey339/terrace&type=Date)](https://star-history.com/#Chevey339/terrace&Date)
 
-## 📄 License
+## 📄 许可证
 
-This project is licensed under the AGPL-3.0 License - see the [LICENSE](LICENSE) file for details.
+本项目采用 AGPL-3.0 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情
 
-## 📞 Contact
+## 📞 联系我们
 
-- Issue: [GitHub Issues](https://github.com/Chevey339/kelivo/issues)
+- Issue：[GitHub Issues](https://github.com/Chevey339/terrace/issues)
 
 ---
 
 <div align="center">
-Made with ❤️ using Flutter
+使用 Flutter 与 ❤️ 打造
 </div>
