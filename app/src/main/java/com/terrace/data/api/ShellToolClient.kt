@@ -6,6 +6,7 @@ import com.terrace.data.AppPreferences
 import com.terrace.data.HttpClientProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
@@ -25,17 +26,28 @@ class ShellToolClient {
 
     /** 服务端语义事件：type + 原始 JSON 字段 */
     data class ShellEvent(val type: String, val json: JsonObject) {
-        fun str(key: String): String? =
-            json.get(key)?.takeIf { !it.isJsonNull }?.asString
+        // 类型安全取值：对象/数组字段（如 tool_call.arguments）返回其 JSON 文本，
+        // 避免 Gson 对非基本类型调 asString 抛 UnsupportedOperationException。
+        fun str(key: String): String? {
+            val v = json.get(key) ?: return null
+            if (v.isJsonNull) return null
+            return if (v.isJsonPrimitive) v.asString else v.toString()
+        }
 
-        fun int(key: String, def: Int = 0): Int =
-            json.get(key)?.takeIf { !it.isJsonNull }?.asInt ?: def
+        fun int(key: String, def: Int = 0): Int {
+            val v = json.get(key) ?: return def
+            return if (v.isJsonPrimitive) v.asInt else def
+        }
 
-        fun double(key: String, def: Double = 0.0): Double =
-            json.get(key)?.takeIf { !it.isJsonNull }?.asDouble ?: def
+        fun double(key: String, def: Double = 0.0): Double {
+            val v = json.get(key) ?: return def
+            return if (v.isJsonPrimitive) v.asDouble else def
+        }
 
-        fun bool(key: String, def: Boolean = false): Boolean =
-            json.get(key)?.takeIf { !it.isJsonNull }?.asBoolean ?: def
+        fun bool(key: String, def: Boolean = false): Boolean {
+            val v = json.get(key) ?: return def
+            return if (v.isJsonPrimitive) v.asBoolean else def
+        }
 
         companion object {
             fun error(message: String): ShellEvent =
@@ -68,40 +80,42 @@ class ShellToolClient {
             .post(payload.toString().toRequestBody(jsonMediaType))
             .build()
 
-        try {
-            HttpClientProvider.stream.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    val body = response.body?.string().orEmpty()
-                    emit(ShellEvent.error("HTTP ${response.code}: $body"))
-                    return@flow
-                }
-                val source = response.body?.source()
-                if (source == null) {
-                    emit(ShellEvent.error("响应体为空"))
-                    return@flow
-                }
-
-                val eventLines = mutableListOf<String>()
-                while (!source.exhausted()) {
-                    val line = source.readUtf8Line() ?: break
-                    if (line.isEmpty()) {
-                        if (eventLines.isNotEmpty()) {
-                            parseEvent(eventLines)?.let { emit(it) }
-                            eventLines.clear()
-                        }
-                        continue
-                    }
-                    if (line.startsWith(":")) continue // 心跳 / 注释
-                    eventLines.add(line)
-                }
-                if (eventLines.isNotEmpty()) {
-                    parseEvent(eventLines)?.let { emit(it) }
-                }
+        HttpClientProvider.stream.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                val body = response.body?.string().orEmpty()
+                emit(ShellEvent.error("HTTP ${response.code}: $body"))
+                return@flow
             }
-        } catch (e: Exception) {
+            val source = response.body?.source()
+            if (source == null) {
+                emit(ShellEvent.error("响应体为空"))
+                return@flow
+            }
+
+            val eventLines = mutableListOf<String>()
+            while (!source.exhausted()) {
+                val line = source.readUtf8Line() ?: break
+                if (line.isEmpty()) {
+                    if (eventLines.isNotEmpty()) {
+                        parseEvent(eventLines)?.let { emit(it) }
+                        eventLines.clear()
+                    }
+                    continue
+                }
+                if (line.startsWith(":")) continue // 心跳 / 注释
+                eventLines.add(line)
+            }
+            if (eventLines.isNotEmpty()) {
+                parseEvent(eventLines)?.let { emit(it) }
+            }
+        }
+    }
+        // 网络/读取异常统一转成 error 事件；用 catch 操作符而非 try/catch+emit，
+        // 以满足 Flow 异常透明性约束。
+        .catch { e ->
             emit(ShellEvent.error("连接失败: ${e.message ?: e.javaClass.simpleName}"))
         }
-    }.flowOn(Dispatchers.IO)
+        .flowOn(Dispatchers.IO)
 
     /** 探活 GET /health */
     suspend fun health(): Result<String> = withContext(Dispatchers.IO) {
@@ -128,7 +142,7 @@ class ShellToolClient {
         if (data.isBlank()) return null
         return try {
             val obj = JsonParser.parseString(data).asJsonObject
-            val type = obj.get("type")?.takeIf { !it.isJsonNull }?.asString ?: return null
+            val type = obj.get("type")?.takeIf { it.isJsonPrimitive }?.asString ?: return null
             ShellEvent(type, obj)
         } catch (_: Exception) {
             null
