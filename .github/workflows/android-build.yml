@@ -1,0 +1,73 @@
+name: Build APK
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write   # 需要写权限才能创建 Release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-disabled: true
+
+      - name: Build Debug APK
+        run: |
+          chmod +x ./gradlew
+          rm -rf ~/.gradle
+          ./gradlew clean assembleDebug --no-daemon --stacktrace --no-build-cache
+
+      - name: Rename APK with build metadata
+        id: rename
+        run: |
+          mkdir -p release-assets
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          DATE=$(date +%Y%m%d-%H%M%S)
+          SRC=$(ls app/build/outputs/apk/debug/*.apk | head -1)
+          DEST="release-assets/shell-tool-android-debug-${DATE}-${SHORT_SHA}.apk"
+          cp "$SRC" "$DEST"
+          echo "apk_path=$DEST" >> "$GITHUB_OUTPUT"
+          echo "date=$DATE" >> "$GITHUB_OUTPUT"
+          echo "tag=build-${DATE}-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Debug APK as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shell-tool-android-debug
+          path: ${{ steps.rename.outputs.apk_path }}
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.rename.outputs.tag }}
+          name: Debug Build ${{ steps.rename.outputs.date }}
+          body: |
+            自动构建的 Debug APK。
+
+            - Commit: `${{ github.sha }}`
+            - 触发: `${{ github.event_name }}`
+            - 分支: `${{ github.ref_name }}`
+          prerelease: true
+          files: ${{ steps.rename.outputs.apk_path }}
