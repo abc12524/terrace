@@ -1,11 +1,11 @@
-package com.shelltool.android.data.db
+package com.terrace.data.db
 
 import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import com.shelltool.android.data.model.ChatSession
-import com.shelltool.android.data.model.Message
+import com.terrace.data.model.ChatSession
+import com.terrace.data.model.Message
 
 @Database(
     entities = [Message::class, ChatSession::class],

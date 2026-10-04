@@ -1,4 +1,4 @@
-package com.shelltool.android.data
+package com.terrace.data
 
 import android.content.Context
 import android.content.SharedPreferences

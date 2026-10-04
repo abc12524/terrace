@@ -1,4 +1,4 @@
-package com.shelltool.android.ui.chat
+package com.terrace.ui.chat
 
 import dev.jeziellago.compose.markdowntext.MarkdownText
 
@@ -44,9 +44,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.shelltool.android.data.model.ChatSession
-import com.shelltool.android.data.model.Message
-import com.shelltool.android.ui.theme.*
+import com.terrace.data.model.ChatSession
+import com.terrace.data.model.Message
+import com.terrace.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.launch
@@ -328,7 +328,7 @@ private fun SessionDrawer(
         drawerContentColor = cs.onSurface,
     ) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
-            Text("Shell Tool",
+            Text("terrace",
                 fontSize = 18.sp, fontWeight = FontWeight.Bold,
                 color = cs.onSurface)
             Text("命令行 AI 助手 · 本地历史", fontSize = 12.sp, color = cs.onSurface.copy(alpha = 0.55f))

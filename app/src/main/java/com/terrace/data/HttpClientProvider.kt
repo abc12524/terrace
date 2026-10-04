@@ -1,4 +1,4 @@
-package com.shelltool.android.data
+package com.terrace.data
 
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit

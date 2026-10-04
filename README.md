@@ -1,4 +1,4 @@
-# Shell Tool Android
+# terrace
 
 [shell-tool](../shell-tool) 的 Android 客户端：通过 HTTP API 连接命令行 AI 助手，
 流式展示思考过程与工具调用；**对话历史仅保存在本机 SQLite**，方便在手机上回看。
@@ -30,7 +30,7 @@
 
 支持直接覆盖安装（无需卸载），且本地对话历史会保留：
 
-- **同一包名** `com.shelltool.android`；
+- **同一包名** `com.terrace`；
 - **同一签名**：debug 与 release 均复用仓库内固定的 `app/keystore.jks`，签名一致即可覆盖安装；
 - **versionCode 递增**：由 CI 的 `GITHUB_RUN_NUMBER` 生成，每次构建自动增大，系统识别为升级。
 
@@ -61,7 +61,7 @@
 ## 目录结构
 
 ```
-app/src/main/java/com/shelltool/android/
+app/src/main/java/com/terrace/
 ├── ShellToolApp.kt              # Application：初始化配置与数据库
 ├── MainActivity.kt              # 单 Activity + Navigation（chat / settings）
 ├── data/

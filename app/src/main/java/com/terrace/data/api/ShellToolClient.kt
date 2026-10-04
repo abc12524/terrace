@@ -1,9 +1,9 @@
-package com.shelltool.android.data.api
+package com.terrace.data.api
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
-import com.shelltool.android.data.AppPreferences
-import com.shelltool.android.data.HttpClientProvider
+import com.terrace.data.AppPreferences
+import com.terrace.data.HttpClientProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow

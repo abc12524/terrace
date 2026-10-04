@@ -1,4 +1,4 @@
-package com.shelltool.android.ui.settings
+package com.terrace.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,9 +22,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.shelltool.android.BuildConfig
-import com.shelltool.android.data.AppPreferences
-import com.shelltool.android.data.api.ShellToolClient
+import com.terrace.BuildConfig
+import com.terrace.data.AppPreferences
+import com.terrace.data.api.ShellToolClient
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -156,7 +156,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     Text("关于", fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f))
                     Spacer(Modifier.height(6.dp))
-                    Text("Shell Tool Android · 版本 ${BuildConfig.VERSION_NAME}",
+                    Text("terrace · 版本 ${BuildConfig.VERSION_NAME}",
                         fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }

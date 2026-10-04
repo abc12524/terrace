@@ -15,5 +15,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "ShellToolAndroid"
+rootProject.name = "Terrace"
 include(":app")

@@ -10,7 +10,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.shelltool.android"
+    namespace = "com.terrace"
     compileSdk = 34
 
     signingConfigs {
@@ -23,7 +23,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.shelltool.android"
+        applicationId = "com.terrace"
         minSdk = 26
         targetSdk = 34
         // 每次 CI 构建用递增的 run number 作为 versionCode，保证可覆盖安装/升级

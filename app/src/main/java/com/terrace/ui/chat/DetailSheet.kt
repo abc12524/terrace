@@ -1,4 +1,4 @@
-package com.shelltool.android.ui.chat
+package com.terrace.ui.chat
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer

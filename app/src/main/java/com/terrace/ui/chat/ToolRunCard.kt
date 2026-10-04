@@ -1,4 +1,4 @@
-package com.shelltool.android.ui.chat
+package com.terrace.ui.chat
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
@@ -29,10 +29,10 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.shelltool.android.data.model.Message
-import com.shelltool.android.ui.theme.AppElevation
-import com.shelltool.android.ui.theme.AppRadii
-import com.shelltool.android.ui.theme.BubbleAssistant
+import com.terrace.data.model.Message
+import com.terrace.ui.theme.AppElevation
+import com.terrace.ui.theme.AppRadii
+import com.terrace.ui.theme.BubbleAssistant
 
 /** 一条「工具调用」：名称 + 弹出详情正文 */
 data class ToolCallEntry(val name: String, val detail: String)

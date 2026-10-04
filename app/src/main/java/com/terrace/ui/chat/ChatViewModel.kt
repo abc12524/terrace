@@ -1,4 +1,4 @@
-package com.shelltool.android.ui.chat
+package com.terrace.ui.chat
 
 import android.app.Application
 import androidx.compose.runtime.getValue
@@ -6,10 +6,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.shelltool.android.data.db.AppDatabase
-import com.shelltool.android.data.model.ChatSession
-import com.shelltool.android.data.model.Message
-import com.shelltool.android.engine.ChatEngine
+import com.terrace.data.db.AppDatabase
+import com.terrace.data.model.ChatSession
+import com.terrace.data.model.Message
+import com.terrace.engine.ChatEngine
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -135,6 +135,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 }
             )
+            // 回复结束后重新读取会话，确保 token / 费用 / 余额已同步
+            loadMessages()
         }
     }
 

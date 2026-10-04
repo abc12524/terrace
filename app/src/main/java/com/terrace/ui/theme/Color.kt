@@ -1,4 +1,4 @@
-package com.shelltool.android.ui.theme
+package com.terrace.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

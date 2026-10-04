@@ -1,10 +1,10 @@
-package com.shelltool.android.data.db
+package com.terrace.data.db
 
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import com.shelltool.android.data.model.ChatSession
+import com.terrace.data.model.ChatSession
 import kotlinx.coroutines.flow.Flow
 
 @Dao

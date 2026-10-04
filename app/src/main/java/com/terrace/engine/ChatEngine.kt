@@ -1,12 +1,12 @@
-package com.shelltool.android.engine
+package com.terrace.engine
 
 import android.content.Context
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
-import com.shelltool.android.data.api.ShellToolClient
-import com.shelltool.android.data.db.AppDatabase
-import com.shelltool.android.data.model.ChatSession
-import com.shelltool.android.data.model.Message
+import com.terrace.data.api.ShellToolClient
+import com.terrace.data.db.AppDatabase
+import com.terrace.data.model.ChatSession
+import com.terrace.data.model.Message
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.withContext
@@ -198,15 +198,16 @@ class ChatEngine(private val context: Context) {
                 )
             )
         }
-        localMessages.forEach { db.messageDao().insert(it) }
-
-        val count = db.messageDao().getMessagesBySessionSync(sessionId).size
-        db.sessionDao().updateStats(sessionId, System.currentTimeMillis(), count)
+        // 先写会话统计/用量，最后插入消息：消息表变化会触发 UI 重读会话，
+        // 此时 token / 费用已就绪，避免 UI 读到 0 而看起来「token 信息丢失」。
+        val baseCount = db.messageDao().getMessagesBySessionSync(sessionId).size
+        db.sessionDao().updateStats(sessionId, System.currentTimeMillis(), baseCount + localMessages.size)
         usage?.let {
             db.sessionDao().addUsage(
                 sessionId, it.hit, it.miss, it.out, it.cost, it.model, it.balance, it.symbol
             )
         }
+        localMessages.forEach { db.messageDao().insert(it) }
 
         val hasTool = localMessages.any { it.role == "tool" }
         if (serverError != null && finalContent.isEmpty() && !hasTool) {

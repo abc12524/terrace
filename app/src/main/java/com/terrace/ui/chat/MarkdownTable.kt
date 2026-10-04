@@ -1,4 +1,4 @@
-package com.shelltool.android.ui.chat
+package com.terrace.ui.chat
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border

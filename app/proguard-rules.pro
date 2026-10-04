@@ -8,5 +8,5 @@
 -keep class okhttp3.** { *; }
 
 # Gson
--keep class com.shelltool.android.data.model.** { *; }
--keep class com.shelltool.android.data.api.** { *; }
+-keep class com.terrace.data.model.** { *; }
+-keep class com.terrace.data.api.** { *; }

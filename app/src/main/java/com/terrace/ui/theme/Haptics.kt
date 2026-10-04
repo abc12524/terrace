@@ -1,4 +1,4 @@
-package com.shelltool.android.ui.theme
+package com.terrace.ui.theme
 
 import android.view.HapticFeedbackConstants
 import androidx.compose.runtime.Composable

@@ -1,8 +1,8 @@
-package com.shelltool.android
+package com.terrace
 
 import android.app.Application
-import com.shelltool.android.data.AppPreferences
-import com.shelltool.android.data.db.AppDatabase
+import com.terrace.data.AppPreferences
+import com.terrace.data.db.AppDatabase
 
 class ShellToolApp : Application() {
     override fun onCreate() {

@@ -1,4 +1,4 @@
-package com.shelltool.android
+package com.terrace
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -15,9 +15,9 @@ import androidx.core.view.WindowCompat
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.shelltool.android.ui.chat.ChatScreen
-import com.shelltool.android.ui.settings.SettingsScreen
-import com.shelltool.android.ui.theme.ShellToolTheme
+import com.terrace.ui.chat.ChatScreen
+import com.terrace.ui.settings.SettingsScreen
+import com.terrace.ui.theme.ShellToolTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
