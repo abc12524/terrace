@@ -26,8 +26,9 @@ android {
         applicationId = "com.shelltool.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        // 每次 CI 构建用递增的 run number 作为 versionCode，保证可覆盖安装/升级
+        versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionName = "1.0.${System.getenv("GITHUB_RUN_NUMBER") ?: "0"}"
     }
 
     buildTypes {
