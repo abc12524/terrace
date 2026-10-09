@@ -51,16 +51,21 @@ class ChatEngine(private val context: Context) {
     }
 
     /**
-     * 发送一轮对话：先落用户消息，消费 SSE，再落 assistant / tool 消息。
+     * 发送一轮对话：先落用户消息，消费 SSE，按「工具轮」边界逐轮落 assistant / tool 消息。
+     *
+     * 每遇到 continuing（工具轮边界）就把当前轮的 reasoning + content + tool_calls / tool 结果
+     * 按时间线写入数据库并通知 UI 复位流式缓冲，因此正文不会全部堆到最后的正式回复里。
      *
      * @param onContent 正文增量回调（用于流式 UI）
      * @param onReasoning 思考增量回调
+     * @param onRoundComplete 一轮落库完成回调：UI 应清空当前流式缓冲，改由数据库消息渲染
      */
     suspend fun sendMessage(
         sessionId: String,
         question: String,
         onContent: (String) -> Unit,
-        onReasoning: (String) -> Unit
+        onReasoning: (String) -> Unit,
+        onRoundComplete: () -> Unit
     ): Result<Unit> = withContext(Dispatchers.IO) {
         val session = db.sessionDao().getSession(sessionId)
             ?: return@withContext Result.failure(Exception("会话不存在"))
@@ -71,36 +76,49 @@ class ChatEngine(private val context: Context) {
             db.sessionDao().updateTitle(sessionId, question.take(20))
         }
 
-        val localMessages = mutableListOf<Message>()
-        val finalContent = StringBuilder()
-        val roundReasoning = StringBuilder()
-        val allReasoning = StringBuilder()
+        var roundReasoning = StringBuilder()
+        var roundContent = StringBuilder()
         var roundTools = mutableListOf<ToolEntry>()
         var usage: UsageStats? = null
         var serverError: String? = null
+        var producedOutput = false
+        var sawTool = false
 
-        suspend fun flushRound() {
-            if (roundTools.isEmpty()) return
+        /**
+         * 把当前轮按时间线落库：一条 assistant（content + reasoning + toolCalls）+ 若干条 tool。
+         * 落库后清空本轮缓冲。usageStats 仅在该轮为最后一轮时传入，用于记录 token。
+         */
+        suspend fun flushRound(usageStats: UsageStats?) {
             val rc = roundReasoning.toString()
-            val calls = JsonArray()
-            roundTools.forEach { t ->
-                calls.add(JsonObject().apply {
-                    addProperty("id", t.id)
-                    addProperty("name", t.name)
-                    addProperty("arguments", t.args ?: "")
-                })
-            }
-            localMessages.add(
+            val cc = roundContent.toString()
+            val hasTools = roundTools.isNotEmpty()
+            if (!hasTools && cc.isBlank() && rc.isBlank()) return
+
+            val calls = if (hasTools) {
+                JsonArray().apply {
+                    roundTools.forEach { t ->
+                        add(JsonObject().apply {
+                            addProperty("id", t.id)
+                            addProperty("name", t.name)
+                            addProperty("arguments", t.args ?: "")
+                        })
+                    }
+                }.toString()
+            } else null
+
+            db.messageDao().insert(
                 Message(
                     sessionId = sessionId,
                     role = "assistant",
-                    content = "",
+                    content = cc,
                     reasoningContent = rc.ifBlank { null },
-                    toolCalls = calls.toString()
+                    toolCalls = calls,
+                    promptTokens = usageStats?.let { it.hit + it.miss } ?: 0,
+                    completionTokens = usageStats?.out ?: 0
                 )
             )
             roundTools.forEach { t ->
-                localMessages.add(
+                db.messageDao().insert(
                     Message(
                         sessionId = sessionId,
                         role = "tool",
@@ -110,9 +128,12 @@ class ChatEngine(private val context: Context) {
                         toolArgs = t.args
                     )
                 )
+                sawTool = true
             }
+            producedOutput = true
+            roundReasoning = StringBuilder()
+            roundContent = StringBuilder()
             roundTools = mutableListOf()
-            roundReasoning.setLength(0)
         }
 
         try {
@@ -121,7 +142,7 @@ class ChatEngine(private val context: Context) {
                     "content" -> {
                         val delta = ev.str("content") ?: ""
                         if (delta.isNotEmpty()) {
-                            finalContent.append(delta)
+                            roundContent.append(delta)
                             onContent(delta)
                         }
                     }
@@ -129,7 +150,6 @@ class ChatEngine(private val context: Context) {
                         val delta = ev.str("content") ?: ""
                         if (delta.isNotEmpty()) {
                             roundReasoning.append(delta)
-                            allReasoning.append(delta)
                             onReasoning(delta)
                         }
                     }
@@ -153,7 +173,11 @@ class ChatEngine(private val context: Context) {
                             roundTools.add(ToolEntry(id ?: "", ev.str("name") ?: "", null, output))
                         }
                     }
-                    "continuing" -> flushRound()
+                    "continuing" -> {
+                        // 工具轮边界：当前轮按时间线落库，并让 UI 复位流式缓冲
+                        flushRound(null)
+                        onRoundComplete()
+                    }
                     "session" -> {
                         if (!session.serverStarted) {
                             db.sessionDao().setServerStarted(sessionId, true)
@@ -177,40 +201,20 @@ class ChatEngine(private val context: Context) {
             serverError = e.message ?: e.javaClass.simpleName
         }
 
-        // 收尾：补齐工具轮与最终 assistant 消息
-        val finalReasoning: String?
-        if (roundTools.isNotEmpty()) {
-            flushRound()
-            finalReasoning = null
-        } else {
-            finalReasoning = roundReasoning.toString().ifBlank { allReasoning.toString() }.ifBlank { null }
-        }
-        // 出错且没有任何输出时，不再落一条空回复
-        if (finalContent.isNotEmpty() || finalReasoning != null) {
-            localMessages.add(
-                Message(
-                    sessionId = sessionId,
-                    role = "assistant",
-                    content = finalContent.toString(),
-                    reasoningContent = finalReasoning,
-                    promptTokens = usage?.let { it.hit + it.miss } ?: 0,
-                    completionTokens = usage?.out ?: 0
-                )
-            )
-        }
-        // 先写会话统计/用量，最后插入消息：消息表变化会触发 UI 重读会话，
-        // 此时 token / 费用已就绪，避免 UI 读到 0 而看起来「token 信息丢失」。
-        val baseCount = db.messageDao().getMessagesBySessionSync(sessionId).size
-        db.sessionDao().updateStats(sessionId, System.currentTimeMillis(), baseCount + localMessages.size)
+        // 收尾：落最后一轮（此时 usage 已就绪），并复位流式缓冲
+        flushRound(usage)
+        onRoundComplete()
+
+        // 先写会话统计/用量，UI 会话流随后刷新，token / 费用已就绪。
+        val count = db.messageDao().getMessagesBySessionSync(sessionId).size
+        db.sessionDao().updateStats(sessionId, System.currentTimeMillis(), count)
         usage?.let {
             db.sessionDao().addUsage(
                 sessionId, it.hit, it.miss, it.out, it.cost, it.model, it.balance, it.symbol
             )
         }
-        localMessages.forEach { db.messageDao().insert(it) }
 
-        val hasTool = localMessages.any { it.role == "tool" }
-        if (serverError != null && finalContent.isEmpty() && !hasTool) {
+        if (serverError != null && !producedOutput && !sawTool) {
             Result.failure(Exception(serverError))
         } else {
             Result.success(Unit)

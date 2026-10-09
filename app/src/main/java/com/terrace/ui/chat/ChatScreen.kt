@@ -209,7 +209,7 @@ fun ChatScreen(
                             listState.animateScrollToItem(lastRealIndex)
                         }
                     }
-                    LaunchedEffect(state.streamingContent.length) {
+                    LaunchedEffect(state.streamingContent.length, chatItems.size) {
                         if (state.isLoading) {
                             listState.scrollToItem(chatItems.size)
                         }
@@ -754,28 +754,39 @@ private fun groupChatItems(messages: List<Message>): List<ChatItem> {
     var i = 0
     while (i < messages.size) {
         val m = messages[i]
-        val isToolTurn = m.role == "assistant" && m.toolCalls != null && m.content.isBlank()
-        if (isToolTurn) {
-            if (!m.reasoningContent.isNullOrBlank()) {
+        when {
+            // 带工具调用的 assistant：正文（如有）作为气泡在前，其后跟随聚合的工具卡
+            m.role == "assistant" && m.toolCalls != null -> {
+                if (m.content.isNotBlank()) {
+                    out.add(ChatItem.Bubble(m))
+                } else if (!m.reasoningContent.isNullOrBlank()) {
+                    out.add(ChatItem.Reason(m))
+                }
+                val tools = mutableListOf<Message>()
+                var j = i + 1
+                while (j < messages.size && messages[j].role == "tool") {
+                    tools.add(messages[j]); j++
+                }
+                if (tools.any { it.toolName != null }) {
+                    out.add(ChatItem.ToolRun(tools))
+                }
+                i = j
+            }
+            // 游离的 tool 消息（无归属 assistant）
+            m.role == "tool" -> {
+                out.add(ChatItem.ToolRun(listOf(m)))
+                i++
+            }
+            // 仅思考、无正文无工具的 assistant：渲染为思考卡，避免空气泡
+            m.role == "assistant" && m.content.isBlank() && !m.reasoningContent.isNullOrBlank() -> {
                 out.add(ChatItem.Reason(m))
+                i++
             }
-            val tools = mutableListOf<Message>()
-            var j = i + 1
-            while (j < messages.size && messages[j].role == "tool") {
-                tools.add(messages[j]); j++
+            else -> {
+                out.add(ChatItem.Bubble(m))
+                i++
             }
-            if (tools.any { it.toolName != null }) {
-                out.add(ChatItem.ToolRun(tools))
-            }
-            i = j
-            continue
-        } else if (m.role == "tool") {
-            out.add(ChatItem.ToolRun(listOf(m)))
-            i++
-            continue
         }
-        out.add(ChatItem.Bubble(m))
-        i++
     }
     return out
 }

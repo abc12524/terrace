@@ -118,6 +118,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 },
                 onReasoning = { delta ->
                     uiState = uiState.copy(streamingReasoning = uiState.streamingReasoning + delta)
+                },
+                onRoundComplete = {
+                    // 本轮已按时间线落库，清空流式缓冲，改由数据库消息渲染
+                    uiState = uiState.copy(streamingContent = "", streamingReasoning = "")
                 }
             )
             result.fold(
