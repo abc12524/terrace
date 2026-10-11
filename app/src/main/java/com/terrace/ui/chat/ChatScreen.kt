@@ -776,6 +776,10 @@ private fun AutoSizedTable(model: MarkdownComponentModel) {
                                 x += colWidths.getOrElse(i) { 0f }
                                 drawLine(line, Offset(x, 0f), Offset(x, size.height), stroke)
                             }
+                            if (ri != rows.lastIndex) {
+                                val y = size.height - stroke / 2f
+                                drawLine(line, Offset(0f, y), Offset(size.width, y), stroke)
+                            }
                         },
                 ) {
                     cells.forEachIndexed { ci, cell ->
@@ -793,9 +797,6 @@ private fun AutoSizedTable(model: MarkdownComponentModel) {
                             )
                         }
                     }
-                }
-                if (ri != rows.lastIndex) {
-                    HorizontalDivider(color = line, thickness = 0.6.dp)
                 }
             }
         }
