@@ -59,6 +59,7 @@ import com.mikepenz.markdown.compose.components.MarkdownComponentModel
 import com.mikepenz.markdown.compose.components.markdownComponents
 import com.mikepenz.markdown.compose.elements.MarkdownTableBasicText
 import com.mikepenz.markdown.m3.Markdown
+import com.mikepenz.markdown.model.rememberMarkdownState
 import com.terrace.data.model.ChatSession
 import com.terrace.data.model.Message
 import com.terrace.ui.theme.*
@@ -688,11 +689,11 @@ private fun MarkdownBody(content: String) {
     val components = remember {
         markdownComponents(table = { model -> AutoSizedTable(model) })
     }
+    val state = rememberMarkdownState(content = content, retainState = true)
     SelectionContainer {
         Markdown(
-            content = content,
+            markdownState = state,
             components = components,
-            retainState = true,
             modifier = Modifier.fillMaxWidth(),
         )
     }
