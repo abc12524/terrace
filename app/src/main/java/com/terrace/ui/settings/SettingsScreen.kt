@@ -1,5 +1,6 @@
 package com.terrace.ui.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.terrace.BuildConfig
 import com.terrace.data.AppPreferences
+import com.terrace.data.ServerProfile
 import com.terrace.data.api.ShellToolClient
 import kotlinx.coroutines.launch
 
@@ -32,16 +35,34 @@ import kotlinx.coroutines.launch
 fun SettingsScreen(onBack: () -> Unit) {
     var host by remember { mutableStateOf(AppPreferences.host) }
     var port by remember { mutableStateOf(AppPreferences.port) }
+    var name by remember { mutableStateOf("") }
     var saved by remember { mutableStateOf(false) }
     var testing by remember { mutableStateOf(false) }
     var testMsg by remember { mutableStateOf<String?>(null) }
     var testOk by remember { mutableStateOf(false) }
+    var servers by remember { mutableStateOf(AppPreferences.servers()) }
     val scope = rememberCoroutineScope()
 
     fun save() {
-        AppPreferences.host = host
-        AppPreferences.port = port
+        if (host.isBlank()) return
+        AppPreferences.saveServer(
+            ServerProfile(name = name.trim().ifBlank { host.trim() }, host = host, port = port)
+        )
+        host = AppPreferences.host
+        port = AppPreferences.port
+        name = AppPreferences.servers().firstOrNull { it.key == AppPreferences.activeKey() }?.name.orEmpty()
+        servers = AppPreferences.servers()
         saved = true
+    }
+
+    fun switchTo(p: ServerProfile) {
+        AppPreferences.switchTo(p)
+        host = AppPreferences.host
+        port = AppPreferences.port
+        name = p.name
+        saved = true
+        testMsg = null
+        servers = AppPreferences.servers()
     }
 
     Scaffold(
@@ -84,6 +105,15 @@ fun SettingsScreen(onBack: () -> Unit) {
                 Column(Modifier.padding(14.dp)) {
                     Text("服务端", fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f))
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it; saved = false; testMsg = null },
+                        label = { Text("名称（可选）") },
+                        placeholder = { Text("例如 家里的服务器") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(
                         value = host,
@@ -137,6 +167,54 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }
             }
 
+            if (servers.isNotEmpty()) {
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(14.dp)) {
+                        Text("已保存的服务端", fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f))
+                        Spacer(Modifier.height(4.dp))
+                        servers.forEach { p ->
+                            val active = p.key == AppPreferences.activeKey()
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { switchTo(p) }
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(selected = active, onClick = { switchTo(p) })
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        p.name.ifBlank { p.display },
+                                        fontSize = 14.sp,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    if (p.name.isNotBlank()) {
+                                        Text(p.display, fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+                                if (active) {
+                                    Text("当前", fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.primary)
+                                    Spacer(Modifier.width(4.dp))
+                                }
+                                IconButton(onClick = {
+                                    AppPreferences.removeServer(p)
+                                    servers = AppPreferences.servers()
+                                }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "删除",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text("点击任意一项即可切换到该服务端。",
+                            fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(14.dp)) {
                     Text("说明", fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
@@ -145,6 +223,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     Text(
                         "• 对话通过 /chat/stream 流式接口调用 shell-tool 服务端\n" +
                             "• 对话历史仅保存在本机 SQLite，方便随时回看，不向服务端请求历史\n" +
+                            "• 可保存多个服务端，随时自由切换\n" +
                             "• 新对话会在服务端新开会话（等价 -n）",
                         fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
