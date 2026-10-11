@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -51,6 +52,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.mikepenz.markdown.compose.components.markdownComponents
+import com.mikepenz.markdown.compose.elements.MarkdownTable
+import com.mikepenz.markdown.compose.elements.MarkdownTableRow
 import com.mikepenz.markdown.m3.Markdown
 import com.terrace.data.model.ChatSession
 import com.terrace.data.model.Message
@@ -68,8 +72,14 @@ fun ChatScreen(
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    val keyboard = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(sessionId) { viewModel.initSession(sessionId) }
+
+    // 打开侧边栏时收起输入法，避免键盘压住抽屉底部（如「设置」）
+    LaunchedEffect(drawerState.isOpen) {
+        if (drawerState.isOpen) keyboard?.hide()
+    }
 
     val state = viewModel.uiState
     var inputText by remember { mutableStateOf("") }
@@ -101,7 +111,11 @@ fun ChatScreen(
                     title = state.sessionTitle,
                     subtitle = state.model,
                     showTitle = state.messages.isNotEmpty() || state.isLoading,
-                    onMenu = { scope.launch { drawerState.open() }; haptics(HapticsType.Light) },
+                    onMenu = {
+                        keyboard?.hide()
+                        scope.launch { drawerState.open() }
+                        haptics(HapticsType.Light)
+                    },
                     onNew = { viewModel.startNewSession(); haptics(HapticsType.Light) },
                 )
             },
@@ -327,7 +341,8 @@ private fun ChatInputBar(
     Column(
         Modifier
             .fillMaxWidth()
-            .navigationBarsPadding()
+            // 键盘弹出时把输入栏顶上去；用 union 取较大值，避免与导航栏内边距叠加
+            .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
             .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         Surface(
@@ -665,9 +680,36 @@ private fun BlinkingCursor(color: Color) {
 
 @Composable
 private fun MarkdownBody(content: String) {
+    val lineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
+    val tableShape = RoundedCornerShape(12.dp)
+    // 给 markdown 表格加外边框 + 行分隔线（默认渲染器只有表头下一条线）
+    val components = remember(lineColor, tableShape) {
+        markdownComponents(
+            table = { model ->
+                Box(
+                    Modifier
+                        .border(1.dp, lineColor, tableShape)
+                        .clip(tableShape),
+                ) {
+                    MarkdownTable(
+                        content = model.content,
+                        node = model.node,
+                        style = model.typography.table,
+                        rowBlock = { c, r, w, s ->
+                            Column(Modifier.fillMaxWidth()) {
+                                MarkdownTableRow(c, r, w, s)
+                                HorizontalDivider(color = lineColor, thickness = 0.6.dp)
+                            }
+                        },
+                    )
+                }
+            }
+        )
+    }
     SelectionContainer {
         Markdown(
             content = content,
+            components = components,
             modifier = Modifier.fillMaxWidth(),
         )
     }
