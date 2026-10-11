@@ -12,12 +12,14 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -43,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
@@ -52,9 +55,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.mikepenz.markdown.compose.components.MarkdownComponentModel
 import com.mikepenz.markdown.compose.components.markdownComponents
-import com.mikepenz.markdown.compose.elements.MarkdownTable
-import com.mikepenz.markdown.compose.elements.MarkdownTableRow
+import com.mikepenz.markdown.compose.elements.MarkdownTableBasicText
 import com.mikepenz.markdown.m3.Markdown
 import com.terrace.data.model.ChatSession
 import com.terrace.data.model.Message
@@ -62,6 +65,8 @@ import com.terrace.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.launch
+import org.intellij.markdown.flavours.gfm.GFMElementTypes
+import org.intellij.markdown.flavours.gfm.GFMTokenTypes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -680,31 +685,8 @@ private fun BlinkingCursor(color: Color) {
 
 @Composable
 private fun MarkdownBody(content: String) {
-    val lineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
-    val tableShape = RoundedCornerShape(12.dp)
-    // 给 markdown 表格加外边框 + 行分隔线（默认渲染器只有表头下一条线）
-    val components = remember(lineColor, tableShape) {
-        markdownComponents(
-            table = { model ->
-                Box(
-                    Modifier
-                        .border(1.dp, lineColor, tableShape)
-                        .clip(tableShape),
-                ) {
-                    MarkdownTable(
-                        content = model.content,
-                        node = model.node,
-                        style = model.typography.table,
-                        rowBlock = { c, r, w, s ->
-                            Column(Modifier.fillMaxWidth()) {
-                                MarkdownTableRow(c, r, w, s)
-                                HorizontalDivider(color = lineColor, thickness = 0.6.dp)
-                            }
-                        },
-                    )
-                }
-            }
-        )
+    val components = remember {
+        markdownComponents(table = { model -> AutoSizedTable(model) })
     }
     SelectionContainer {
         Markdown(
@@ -712,6 +694,74 @@ private fun MarkdownBody(content: String) {
             components = components,
             modifier = Modifier.fillMaxWidth(),
         )
+    }
+}
+
+/** 内容自适应的 markdown 表格：外边框 + 行分隔线，列宽按单元格文本估算。 */
+@Composable
+private fun AutoSizedTable(model: MarkdownComponentModel) {
+    val line = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
+    val shape = RoundedCornerShape(12.dp)
+    val src = model.content
+    val style = model.typography.table
+    val density = LocalDensity.current
+
+    val rows = remember(model.node) {
+        model.node.children
+            .filter { it.type == GFMElementTypes.HEADER || it.type == GFMElementTypes.ROW }
+            .map { row -> row.children.filter { it.type == GFMTokenTypes.CELL } }
+    }
+    val colCount = rows.maxOfOrNull { it.size } ?: 0
+
+    val colWidths = remember(model.node, src, density) {
+        val em = with(density) { 14.sp.toPx() }
+        val pad = with(density) { 26.dp.toPx() }
+        val minW = with(density) { 44.dp.toPx() }
+        val maxW = with(density) { 260.dp.toPx() }
+        Array(colCount) { c ->
+            var w = em * 2f
+            rows.forEach { r ->
+                r.getOrNull(c)?.let { cell ->
+                    var cw = 0f
+                    for (ch in src.substring(cell.startOffset, cell.endOffset)) {
+                        cw += if (ch.code > 0x2E80) em else em * 0.55f
+                    }
+                    if (cw > w) w = cw
+                }
+            }
+            (w + pad).coerceIn(minW, maxW)
+        }
+    }
+
+    Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+        Column(
+            Modifier
+                .border(1.dp, line, shape)
+                .clip(shape),
+        ) {
+            rows.forEachIndexed { ri, cells ->
+                Row {
+                    cells.forEachIndexed { ci, cell ->
+                        Box(
+                            Modifier
+                                .width(with(density) { colWidths.getOrElse(ci) { 0f }.toDp() })
+                                .padding(horizontal = 10.dp, vertical = 7.dp),
+                        ) {
+                            MarkdownTableBasicText(
+                                content = src,
+                                cell = cell,
+                                style = if (ri == 0) style.copy(fontWeight = FontWeight.Bold) else style,
+                                maxLines = Int.MAX_VALUE,
+                                overflow = TextOverflow.Clip,
+                            )
+                        }
+                    }
+                }
+                if (ri != rows.lastIndex) {
+                    HorizontalDivider(color = line, thickness = 0.6.dp)
+                }
+            }
+        }
     }
 }
 
