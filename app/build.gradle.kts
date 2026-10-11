@@ -50,6 +50,14 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    // minSdk >= 28 时 AGP 默认把 dex 以「未压缩」形式打进 APK（装到手机更小，但 APK 文件更大）。
+    // 这里是直接分发 APK，故强制压缩 dex，把包体从 ~66MB 降回 ~20MB。
+    packaging {
+        dex {
+            useLegacyPackaging = true
+        }
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
