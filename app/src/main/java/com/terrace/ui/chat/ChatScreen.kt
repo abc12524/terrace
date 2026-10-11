@@ -40,7 +40,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -59,6 +61,8 @@ import com.mikepenz.markdown.compose.components.MarkdownComponentModel
 import com.mikepenz.markdown.compose.components.markdownComponents
 import com.mikepenz.markdown.compose.elements.MarkdownTableBasicText
 import com.mikepenz.markdown.m3.Markdown
+import com.mikepenz.markdown.m3.markdownTypography
+import com.mikepenz.markdown.model.MarkdownTypography
 import com.mikepenz.markdown.model.rememberMarkdownState
 import com.terrace.data.model.ChatSession
 import com.terrace.data.model.Message
@@ -690,13 +694,29 @@ private fun MarkdownBody(content: String) {
         markdownComponents(table = { model -> AutoSizedTable(model) })
     }
     val state = rememberMarkdownState(content = content, retainState = true)
+    val typography = chatMarkdownTypography()
     SelectionContainer {
         Markdown(
             markdownState = state,
             components = components,
+            typography = typography,
             modifier = Modifier.fillMaxWidth(),
         )
     }
+}
+
+/** 收窄 m3 默认的标题字号（默认 h1=displayLarge=57sp，正文里过大）。 */
+@Composable
+private fun chatMarkdownTypography(): MarkdownTypography {
+    val base = MaterialTheme.typography.bodyLarge
+    return markdownTypography(
+        h1 = base.copy(fontSize = 22.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold),
+        h2 = base.copy(fontSize = 20.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold),
+        h3 = base.copy(fontSize = 18.sp, lineHeight = 26.sp, fontWeight = FontWeight.Bold),
+        h4 = base.copy(fontSize = 17.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold),
+        h5 = base.copy(fontSize = 16.sp, lineHeight = 23.sp, fontWeight = FontWeight.SemiBold),
+        h6 = base.copy(fontSize = 15.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold),
+    )
 }
 
 /** 内容自适应的 markdown 表格：外边框 + 行分隔线，列宽按单元格文本估算。 */
@@ -747,7 +767,16 @@ private fun AutoSizedTable(model: MarkdownComponentModel) {
         ) {
             rows.forEachIndexed { ri, cells ->
                 Row(
-                    Modifier.background(if (ri == 0) headerBg else Color.Transparent),
+                    Modifier
+                        .background(if (ri == 0) headerBg else Color.Transparent)
+                        .drawBehind {
+                            val stroke = 0.8f.dp.toPx()
+                            var x = 0f
+                            for (i in 0 until cells.size - 1) {
+                                x += colWidths.getOrElse(i) { 0f }
+                                drawLine(line, Offset(x, 0f), Offset(x, size.height), stroke)
+                            }
+                        },
                 ) {
                     cells.forEachIndexed { ci, cell ->
                         Box(
