@@ -51,9 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.mikepenz.markdown.compose.Markdown
-import com.mikepenz.markdown.m3.markdownColor
-import com.mikepenz.markdown.m3.markdownTypography
+import com.mikepenz.markdown.m3.Markdown
 import com.terrace.data.model.ChatSession
 import com.terrace.data.model.Message
 import com.terrace.ui.theme.*
@@ -670,9 +668,6 @@ private fun MarkdownBody(content: String) {
     SelectionContainer {
         Markdown(
             content = content,
-            colors = markdownColor(),
-            typography = markdownTypography(),
-            retainState = true,
             modifier = Modifier.fillMaxWidth(),
         )
     }

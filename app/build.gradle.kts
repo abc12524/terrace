@@ -87,6 +87,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
     // Markdown (原生 Compose 渲染：GFM 表格 / 代码高亮 / 链接 / 图片)
-    implementation("com.mikepenz:multiplatform-markdown-renderer:0.38.1")
-    implementation("com.mikepenz:multiplatform-markdown-renderer-m3:0.38.1")
+    // 注意：0.35.0 是对应 Compose 1.8.x 的最后一个稳定版；0.37+ 起需 Compose 1.9+，混用会在运行时崩。
+    implementation("com.mikepenz:multiplatform-markdown-renderer:0.35.0")
+    implementation("com.mikepenz:multiplatform-markdown-renderer-m3:0.35.0")
 }
