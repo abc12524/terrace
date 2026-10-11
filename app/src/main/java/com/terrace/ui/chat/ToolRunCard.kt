@@ -104,7 +104,7 @@ fun ToolRunCard(steps: List<Message>, modifier: Modifier = Modifier) {
     ToolCallCard(entries, modifier)
 }
 
-private fun buildToolDetail(step: Message): String {
+internal fun buildToolDetail(step: Message): String {
     val args = step.toolArgs ?: ""
     val result = step.content.ifBlank { "(空)" }
     return if (args.isNotBlank()) {

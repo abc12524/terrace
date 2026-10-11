@@ -72,7 +72,7 @@ app/src/main/java/com/terrace/
 │   └── model/                   # Message / ChatSession
 ├── engine/ChatEngine.kt         # 事件流 → 本地消息映射与落库
 └── ui/
-    ├── chat/                    # ChatScreen / ChatViewModel / 工具卡 / 表格
+    ├── chat/                    # ChatScreen / ChatViewModel / 工具卡
     ├── settings/SettingsScreen.kt
     └── theme/                   # Compose 主题与设计令牌
 ```

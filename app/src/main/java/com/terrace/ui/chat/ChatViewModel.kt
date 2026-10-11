@@ -144,6 +144,13 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** 重新生成：重发本轮最近的用户问题。 */
+    fun regenerate() {
+        if (uiState.isLoading) return
+        val lastUser = uiState.messages.lastOrNull { it.role == "user" }?.content
+        if (!lastUser.isNullOrBlank()) sendMessage(lastUser)
+    }
+
     fun clearError() {
         uiState = uiState.copy(error = null)
     }
