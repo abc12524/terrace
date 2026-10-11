@@ -692,6 +692,7 @@ private fun MarkdownBody(content: String) {
         Markdown(
             content = content,
             components = components,
+            retainState = true,
             modifier = Modifier.fillMaxWidth(),
         )
     }
@@ -700,8 +701,11 @@ private fun MarkdownBody(content: String) {
 /** 内容自适应的 markdown 表格：外边框 + 行分隔线，列宽按单元格文本估算。 */
 @Composable
 private fun AutoSizedTable(model: MarkdownComponentModel) {
-    val line = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
-    val shape = RoundedCornerShape(12.dp)
+    val cs = MaterialTheme.colorScheme
+    val line = cs.outline.copy(alpha = 0.6f)
+    val headerBg = cs.surfaceVariant.copy(alpha = 0.55f)
+    val bodyBg = cs.surfaceVariant.copy(alpha = 0.22f)
+    val shape = RoundedCornerShape(10.dp)
     val src = model.content
     val style = model.typography.table
     val density = LocalDensity.current
@@ -737,10 +741,13 @@ private fun AutoSizedTable(model: MarkdownComponentModel) {
         Column(
             Modifier
                 .border(1.dp, line, shape)
-                .clip(shape),
+                .clip(shape)
+                .background(bodyBg),
         ) {
             rows.forEachIndexed { ri, cells ->
-                Row {
+                Row(
+                    Modifier.background(if (ri == 0) headerBg else Color.Transparent),
+                ) {
                     cells.forEachIndexed { ci, cell ->
                         Box(
                             Modifier
