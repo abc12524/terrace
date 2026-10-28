@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -153,7 +154,11 @@ fun SettingsScreen(onBack: () -> Unit) {
                             Text(if (saved) "已保存" else "保存")
                         }
                         if (testing) {
-                            CircularProgressIndicator(Modifier.width(20.dp), strokeWidth = 2.dp)
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
                         }
                         if (testMsg != null && !testing) {
                             Text(testMsg!!, fontSize = 12.sp,

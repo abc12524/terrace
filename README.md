@@ -42,14 +42,16 @@
 - **UI**: Jetpack Compose + Material 3
 - **数据库**: Room (SQLite)
 - **网络**: OkHttp（SSE 流式）+ Gson
-- **构建**: Gradle + GitHub Actions（自动构建 Debug APK 并发布 Release）
+- **构建**: Gradle + GitHub Actions（手动触发构建，可选发布 Release）
 
 ## 构建
 
 本仓库不含 Gradle Wrapper jar 之外的构建产物，推荐直接用 GitHub Actions：
 
-- push 到 `main`/`master` 或手动触发 `Build APK` workflow；
-- 构建成功后可在 Actions 的 Artifacts 或 Releases 下载 `shell-tool-android-debug-*.apk`。
+- 在 Actions 里**手动触发** `Build Terrace APK`（仅 `workflow_dispatch`，push 不再自动构建）；
+- 勾选 `publish_release` 才创建 Release（tag `terrace-v1.0.<run_number>`）；不勾选只编译，
+  产物留在 Actions 的 Artifacts（`terrace-apk`）；
+- 版本号 `1.0.<GITHUB_RUN_NUMBER>` 随 CI 运行号累加，APK 命名 `terrace_v1.0.<run_number>.apk`。
 
 本地构建（需 JDK 17 + Android SDK）：
 
