@@ -55,7 +55,6 @@ jobs:
 
       - name: 🏗️ 构建 Debug APK
         run: |
-          rm -rf ~/.gradle
           ./gradlew clean assembleDebug --no-daemon --stacktrace --no-build-cache
 
       - name: 📦 重命名 APK
