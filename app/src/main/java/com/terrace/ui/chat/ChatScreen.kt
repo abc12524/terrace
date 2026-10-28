@@ -1,10 +1,8 @@
 package com.terrace.ui.chat
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -30,10 +28,6 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Build
-import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.Psychology
-import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -41,17 +35,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -145,60 +135,15 @@ fun ChatScreen(
         ) { padding ->
             Box(Modifier.fillMaxSize().padding(padding)) {
                 val displayMessages = state.messages.filter { it.role != "system" }
-                val chatItems = remember(displayMessages) { groupChatItems(displayMessages) }
                 if (displayMessages.isEmpty() && !state.isLoading) {
                     WelcomeScreen(onPick = { inputText = it })
                 } else {
-                    val lastIndex = (chatItems.size - 1).coerceAtLeast(0)
-
-                    LaunchedEffect(chatItems.size, state.isLoading) {
-                        if (!state.isLoading && chatItems.isNotEmpty()) {
-                            listState.animateScrollToItem(lastIndex)
-                        }
-                    }
-                    LaunchedEffect(state.streamingContent.length, state.streamingReasoning.length, chatItems.size) {
-                        if (state.isLoading) listState.scrollToItem(chatItems.size)
-                    }
-
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(18.dp),
-                        contentPadding = PaddingValues(top = 10.dp, bottom = 28.dp)
-                    ) {
-                        items(chatItems.size, key = { chatItems[it].key }) { index ->
-                            when (val item = chatItems[index]) {
-                                is ChatItem.User -> UserBubble(item.msg)
-                                is ChatItem.Assistant -> AssistantCell(
-                                    msg = item.msg,
-                                    tools = item.tools,
-                                    onRegenerate = { viewModel.regenerate(); haptics(HapticsType.Light) },
-                                )
-                                is ChatItem.Tools -> ToolFragmentGroup(item.steps)
-                            }
-                        }
-                        if (state.isLoading) {
-                            item(key = "streaming") {
-                                StreamingAssistant(
-                                    content = state.streamingContent,
-                                    reasoning = state.streamingReasoning,
-                                )
-                            }
-                        }
-                        if (state.messages.any { it.role == "assistant" }) {
-                            item(key = "token_footer") {
-                                TokenFooter(
-                                    cacheHit = state.totalHit,
-                                    cacheMiss = state.totalMiss,
-                                    sessionOut = state.totalOut,
-                                    totalCost = state.totalCost,
-                                    family = state.model,
-                                    balance = state.balance,
-                                    symbol = state.symbol,
-                                )
-                            }
-                        }
-                    }
+                    // 新版思考流：思维链 / 工具调用内联展示，正文单独成气泡
+                    StreamChatList(
+                        state = state,
+                        listState = listState,
+                        onRegenerate = { viewModel.regenerate(); haptics(HapticsType.Light) },
+                    )
                 }
 
                 if (showJumpToBottom) {
@@ -207,7 +152,10 @@ fun ChatScreen(
                             .align(Alignment.BottomCenter)
                             .padding(bottom = 12.dp),
                         onClick = {
-                            scope.launch { listState.animateScrollToItem(chatItems.size) }
+                            scope.launch {
+                                val last = (listState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0)
+                                listState.animateScrollToItem(last)
+                            }
                             haptics(HapticsType.Light)
                         },
                     )
@@ -426,7 +374,7 @@ private fun GoToBottomButton(modifier: Modifier = Modifier, onClick: () -> Unit)
 // ==================== 用户气泡 ====================
 
 @Composable
-private fun UserBubble(msg: Message) {
+internal fun UserBubble(msg: Message) {
     val cs = MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
         Surface(
@@ -453,51 +401,8 @@ private fun UserBubble(msg: Message) {
     }
 }
 
-// ==================== 助手消息单元 ====================
-
 @Composable
-private fun AssistantCell(
-    msg: Message,
-    tools: List<Message>,
-    onRegenerate: () -> Unit,
-) {
-    val cs = MaterialTheme.colorScheme
-    val reasoning = msg.reasoningContent.orEmpty()
-    val clipboard = LocalClipboardManager.current
-    val haptics = rememberHaptics()
-    val hasTools = tools.any { it.toolName != null }
-    if (msg.content.isBlank() && reasoning.isBlank() && !hasTools) return
-
-    Column(Modifier.fillMaxWidth()) {
-        if (reasoning.isNotBlank()) {
-            ThinkingBlock(reasoning)
-            Spacer(Modifier.height(10.dp))
-        }
-        if (msg.content.isNotBlank()) {
-            MarkdownBody(msg.content)
-        }
-        if (hasTools) {
-            if (msg.content.isNotBlank()) Spacer(Modifier.height(10.dp))
-            ToolFragmentGroup(tools)
-        }
-        if (msg.content.isNotBlank()) {
-            Spacer(Modifier.height(6.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                FooterIcon(Icons.Outlined.ContentCopy, "复制") {
-                    clipboard.setText(AnnotatedString(msg.content))
-                    haptics(HapticsType.Light)
-                }
-                FooterIcon(Icons.Outlined.Refresh, "重新生成", onRegenerate)
-                Spacer(Modifier.weight(1f))
-                Text(fmtTime(msg.timestamp), fontSize = 10.sp,
-                    color = cs.onSurfaceVariant.copy(alpha = 0.45f))
-            }
-        }
-    }
-}
-
-@Composable
-private fun FooterIcon(icon: ImageVector, label: String, onClick: () -> Unit) {
+internal fun FooterIcon(icon: ImageVector, label: String, onClick: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     IconButton(onClick = onClick, modifier = Modifier.size(32.dp)) {
         Icon(icon, contentDescription = label, modifier = Modifier.size(16.dp),
@@ -506,157 +411,7 @@ private fun FooterIcon(icon: ImageVector, label: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun ThinkingBlock(reasoning: String) {
-    val cs = MaterialTheme.colorScheme
-    var expanded by remember { mutableStateOf(false) }
-    val rotation by animateFloatAsState(if (expanded) 180f else 0f, label = "thinkChevron")
-
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .clip(AppRadii.card)
-            .background(cs.surfaceVariant.copy(alpha = 0.4f))
-            .clickable { expanded = !expanded }
-            .padding(horizontal = 12.dp, vertical = 10.dp)
-            .animateContentSize(tween(200)),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Outlined.Psychology, contentDescription = null,
-                tint = cs.primary, modifier = Modifier.size(16.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(
-                if (expanded) "深度思考" else "已深度思考",
-                fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = cs.onSurface,
-            )
-            Spacer(Modifier.weight(1f))
-            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = if (expanded) "收起" else "展开",
-                tint = cs.onSurface.copy(alpha = 0.6f),
-                modifier = Modifier.size(20.dp).rotate(rotation))
-        }
-        if (expanded) {
-            Spacer(Modifier.height(8.dp))
-            Text(
-                reasoning, fontSize = 12.sp, fontFamily = FontFamily.Monospace,
-                lineHeight = 18.sp, color = cs.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun ToolFragmentGroup(steps: List<Message>) {
-    val cs = MaterialTheme.colorScheme
-    val entries = steps
-        .filter { it.role == "tool" && it.toolName != null }
-        .map { ToolCallEntry(it.toolName!!, buildToolDetail(it)) }
-    if (entries.isEmpty()) return
-
-    var expanded by remember { mutableStateOf(false) }
-    var detail by remember { mutableStateOf<List<ToolCallEntry>?>(null) }
-    val rotation by animateFloatAsState(if (expanded) 180f else 0f, label = "toolChevron")
-
-    Surface(
-        modifier = Modifier.fillMaxWidth().animateContentSize(tween(200)),
-        shape = AppRadii.card,
-        color = cs.surfaceVariant.copy(alpha = 0.4f),
-        border = BorderStroke(0.8.dp, cs.outlineVariant.copy(alpha = 0.2f)),
-    ) {
-        Column(Modifier.padding(vertical = 2.dp)) {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = !expanded }
-                    .padding(horizontal = 14.dp, vertical = 11.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.Outlined.Build, contentDescription = null,
-                    tint = cs.primary, modifier = Modifier.size(15.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("已运行 ${entries.size} 个工具", fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium, color = cs.onSurface,
-                    modifier = Modifier.weight(1f))
-                Icon(Icons.Filled.KeyboardArrowDown,
-                    contentDescription = if (expanded) "收起" else "展开",
-                    tint = cs.onSurface.copy(alpha = 0.6f),
-                    modifier = Modifier.size(18.dp).rotate(rotation))
-            }
-            if (expanded) {
-                entries.forEach { entry ->
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .clickable { detail = listOf(entry) }
-                            .padding(start = 36.dp, end = 14.dp, top = 6.dp, bottom = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(entry.name, fontSize = 13.sp, color = cs.onSurfaceVariant,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f))
-                        Icon(Icons.Filled.KeyboardArrowRight, contentDescription = "查看详情",
-                            tint = cs.onSurface.copy(alpha = 0.3f), modifier = Modifier.size(15.dp))
-                    }
-                }
-                Spacer(Modifier.height(4.dp))
-            }
-        }
-    }
-
-    detail?.let { list ->
-        val title = if (list.size == 1) "工具调用: ${list[0].name}" else "工具调用 (${list.size})"
-        val body = list.joinToString("\n\n") { "工具调用: ${it.name}\n${it.detail}" }
-        DetailSheet(title = title, body = body, onDismiss = { detail = null })
-    }
-}
-
-// ==================== 流式回复 ====================
-
-@Composable
-private fun StreamingAssistant(content: String, reasoning: String) {
-    val cs = MaterialTheme.colorScheme
-    Column(Modifier.fillMaxWidth()) {
-        if (reasoning.isNotBlank()) {
-            Surface(
-                modifier = Modifier.fillMaxWidth().animateContentSize(tween(200)),
-                shape = AppRadii.card,
-                color = cs.primaryContainer.copy(alpha = 0.35f),
-            ) {
-                Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.Psychology, contentDescription = null,
-                            tint = cs.tertiary, modifier = Modifier.size(15.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("正在深度思考…", fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold, color = cs.onSurface)
-                        Spacer(Modifier.weight(1f))
-                        BlinkingCursor(color = cs.primary.copy(alpha = 0.7f))
-                    }
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        reasoning, fontSize = 12.sp, fontFamily = FontFamily.Monospace,
-                        lineHeight = 18.sp, color = cs.onSurfaceVariant,
-                        maxLines = 8, overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-            if (content.isNotBlank()) Spacer(Modifier.height(10.dp))
-        }
-
-        if (content.isBlank() && reasoning.isBlank()) {
-            Row(Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                StreamingDots()
-                Spacer(Modifier.width(10.dp))
-                Text("正在思考…", fontSize = 13.sp, color = cs.onSurfaceVariant.copy(alpha = 0.7f))
-            }
-        } else if (content.isNotBlank()) {
-            MarkdownBody(content)
-            Spacer(Modifier.height(4.dp))
-            BlinkingCursor(color = cs.onSurface.copy(alpha = 0.6f))
-        }
-    }
-}
-
-@Composable
-private fun StreamingDots() {
+internal fun StreamingDots() {
     val transition = rememberInfiniteTransition(label = "streamDots")
     val alpha = transition.animateFloat(
         initialValue = 0.25f, targetValue = 0.9f,
@@ -675,7 +430,7 @@ private fun StreamingDots() {
 }
 
 @Composable
-private fun BlinkingCursor(color: Color) {
+internal fun BlinkingCursor(color: Color) {
     val transition = rememberInfiniteTransition(label = "cursorBlink")
     val alpha = transition.animateFloat(
         initialValue = 0.2f, targetValue = 1f,
@@ -689,7 +444,7 @@ private fun BlinkingCursor(color: Color) {
 // ==================== Markdown 渲染 ====================
 
 @Composable
-private fun MarkdownBody(content: String) {
+internal fun MarkdownBody(content: String) {
     val components = remember {
         markdownComponents(table = { model -> AutoSizedTable(model) })
     }
@@ -806,7 +561,7 @@ private fun AutoSizedTable(model: MarkdownComponentModel) {
 // ==================== Token 统计底部 ====================
 
 @Composable
-private fun TokenFooter(
+internal fun TokenFooter(
     cacheHit: Int, cacheMiss: Int, sessionOut: Int,
     totalCost: Double, family: String, balance: String, symbol: String,
 ) {
@@ -999,7 +754,7 @@ private fun DrawerFooterRow(icon: ImageVector, label: String, onClick: () -> Uni
 
 // ==================== 工具函数 ====================
 
-private fun fmtTime(ms: Long) =
+internal fun fmtTime(ms: Long) =
     SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(ms))
 
 private fun fmtSessionTime(ms: Long): String {
@@ -1018,49 +773,6 @@ private fun sameDay(a: Calendar, b: Calendar) =
 private fun isYest(now: Calendar, d: Calendar): Boolean {
     val y = Calendar.getInstance().also { it.timeInMillis = now.timeInMillis - 86400000L }
     return sameDay(y, d)
-}
-
-// ==================== 消息分组 ====================
-
-private sealed interface ChatItem {
-    val key: Any
-    data class User(val msg: Message) : ChatItem {
-        override val key: Any get() = msg.id
-    }
-    data class Assistant(val msg: Message, val tools: List<Message>) : ChatItem {
-        override val key: Any get() = msg.id
-    }
-    data class Tools(val steps: List<Message>) : ChatItem {
-        override val key: Any get() = steps.first().id
-    }
-}
-
-private fun groupChatItems(messages: List<Message>): List<ChatItem> {
-    val out = mutableListOf<ChatItem>()
-    var i = 0
-    while (i < messages.size) {
-        val m = messages[i]
-        when (m.role) {
-            "tool" -> {
-                out.add(ChatItem.Tools(listOf(m)))
-                i++
-            }
-            "assistant" -> {
-                val tools = mutableListOf<Message>()
-                var j = i + 1
-                while (j < messages.size && messages[j].role == "tool") {
-                    tools.add(messages[j]); j++
-                }
-                out.add(ChatItem.Assistant(m, tools))
-                i = j
-            }
-            else -> {
-                out.add(ChatItem.User(m))
-                i++
-            }
-        }
-    }
-    return out
 }
 
 private data class SG(val label: String, val sessions: List<ChatSession>)
