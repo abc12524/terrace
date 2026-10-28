@@ -25,7 +25,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Settings
@@ -277,7 +277,7 @@ private fun WelcomeScreen(onPick: (String) -> Unit) {
                 ) {
                     Text(suggestion, fontSize = 14.sp, color = cs.onSurface,
                         modifier = Modifier.weight(1f))
-                    Icon(Icons.Filled.KeyboardArrowRight, contentDescription = null,
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null,
                         tint = cs.onSurface.copy(alpha = 0.3f), modifier = Modifier.size(18.dp))
                 }
             }

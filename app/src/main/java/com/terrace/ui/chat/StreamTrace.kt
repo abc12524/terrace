@@ -1,5 +1,7 @@
 package com.terrace.ui.chat
 
+import android.content.ClipData
+import android.content.Context
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -48,8 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -450,7 +451,7 @@ internal fun StreamChatList(
 private fun AssistantBubble(msg: Message, onRegenerate: () -> Unit) {
     if (msg.content.isBlank()) return
     val cs = MaterialTheme.colorScheme
-    val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
     val haptics = rememberHaptics()
 
     Column(Modifier.fillMaxWidth()) {
@@ -458,7 +459,8 @@ private fun AssistantBubble(msg: Message, onRegenerate: () -> Unit) {
         Spacer(Modifier.height(6.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             FooterIcon(Icons.Outlined.ContentCopy, "复制") {
-                clipboard.setText(AnnotatedString(msg.content))
+                val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                cm?.setPrimaryClip(ClipData.newPlainText("terrace", msg.content))
                 haptics(HapticsType.Light)
             }
             FooterIcon(Icons.Outlined.Refresh, "重新生成", onRegenerate)
