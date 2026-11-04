@@ -1,10 +1,11 @@
 package com.terrace.ui.chat
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.StartOffset
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -49,6 +50,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
@@ -97,8 +99,10 @@ fun ChatScreen(
     val listState = rememberLazyListState()
 
     var drawerProgress by remember { mutableFloatStateOf(0f) }
-    var drawerDragging by remember { mutableStateOf(false) }
     var drawerAnimJob by remember { mutableStateOf<Job?>(null) }
+    // 容器宽度（px）：把拖动位移换算成 0..1 的抽屉进度
+    var containerWidthPx by remember { mutableFloatStateOf(0f) }
+    val drawerWidthPx = containerWidthPx * AppSpacing.drawerWidthFraction
 
     val showJumpToBottom by remember {
         derivedStateOf {
@@ -108,50 +112,69 @@ fun ChatScreen(
         }
     }
 
-    BoxWithConstraints(
-        Modifier.fillMaxSize().background(palette.surface)
-    ) {
-        val widthPx = with(density) { maxWidth.toPx() }
-        val drawerWidthPx = widthPx * AppSpacing.drawerWidthFraction
-        val drawerWidthDp = maxWidth * AppSpacing.drawerWidthFraction
-        val cornerPx = with(density) { 24.dp.toPx() }
-        val shadowPx = with(density) { AppElevation.drawer.toPx() }
+    suspend fun animateDrawerToSuspend(target: Float) {
+        animate(
+            initialValue = drawerProgress,
+            targetValue = target,
+            animationSpec = tween(AppMotion.drawerMs, easing = AppMotion.ease),
+        ) { value, _ -> drawerProgress = value }
+    }
 
-        suspend fun animateDrawerToSuspend(target: Float) {
-            animate(
-                initialValue = drawerProgress,
-                targetValue = target,
-                animationSpec = tween(AppMotion.drawerMs, easing = AppMotion.ease),
-            ) { value, _ -> drawerProgress = value }
+    fun animateDrawerTo(target: Float) {
+        drawerAnimJob?.cancel()
+        drawerAnimJob = scope.launch { animateDrawerToSuspend(target) }
+    }
+
+    fun closeDrawerThen(action: () -> Unit) {
+        drawerAnimJob?.cancel()
+        drawerAnimJob = scope.launch {
+            animateDrawerToSuspend(0f)
+            action()
         }
+    }
 
-        fun animateDrawerTo(target: Float) {
-            drawerAnimJob?.cancel()
-            drawerAnimJob = scope.launch { animateDrawerToSuspend(target) }
+    fun settleDrawer(velocity: Float) {
+        val target = when {
+            velocity > 350f -> 1f
+            velocity < -350f -> 0f
+            drawerProgress >= 0.5f -> 1f
+            else -> 0f
         }
+        animateDrawerTo(target)
+    }
 
-        fun closeDrawerThen(action: () -> Unit) {
-            drawerAnimJob?.cancel()
-            drawerAnimJob = scope.launch {
-                animateDrawerToSuspend(0f)
-                action()
-            }
-        }
+    // 只在完全展开时订阅布尔值，避免拖动过程中整页重组
+    val drawerOpen by remember { derivedStateOf { drawerProgress > 0.99f } }
 
-        fun settleDrawer(velocity: Float) {
-            val target = when {
-                velocity > 350f -> 1f
-                velocity < -350f -> 0f
-                drawerProgress >= 0.5f -> 1f
-                else -> 0f
-            }
-            animateDrawerTo(target)
-        }
+    // 抽屉展开时按返回键先收起抽屉
+    BackHandler(enabled = drawerOpen) { animateDrawerTo(0f) }
 
-        val dragState = rememberDraggableState { delta ->
+    // 整屏横向拖动：右滑拉出会话抽屉，左滑推回；竖向滚动仍由列表自己消费
+    val dragState = rememberDraggableState { delta ->
+        if (drawerWidthPx > 0f) {
             drawerAnimJob?.cancel()
             drawerProgress = (drawerProgress + delta / drawerWidthPx).coerceIn(0f, 1f)
         }
+    }
+
+    BoxWithConstraints(
+        Modifier
+            .fillMaxSize()
+            .background(palette.surface)
+            .onSizeChanged { containerWidthPx = it.width.toFloat() }
+            .draggable(
+                state = dragState,
+                orientation = Orientation.Horizontal,
+                onDragStarted = {
+                    drawerAnimJob?.cancel()
+                    keyboard?.hide()
+                },
+                onDragStopped = { velocity -> settleDrawer(velocity) },
+            )
+    ) {
+        val drawerWidthDp = maxWidth * AppSpacing.drawerWidthFraction
+        val cornerPx = with(density) { 24.dp.toPx() }
+        val shadowPx = with(density) { AppElevation.drawer.toPx() }
 
         // 会话面板：常驻在底层，随主界面位移露出
         SessionDrawer(
@@ -252,46 +275,22 @@ fun ChatScreen(
             }
         }
 
-        // 关闭态：屏幕左边缘可右滑拉出抽屉
-        if (drawerProgress < 0.01f || drawerDragging) {
-            Box(
-                Modifier
-                    .align(Alignment.CenterStart)
-                    .fillMaxHeight()
-                    .width(28.dp)
-                    .systemGestureExclusion()
-                    .draggable(
-                        state = dragState,
-                        orientation = Orientation.Horizontal,
-                        onDragStarted = {
-                            drawerAnimJob?.cancel()
-                            drawerDragging = true
-                            keyboard?.hide()
-                        },
-                        onDragStopped = { velocity ->
-                            drawerDragging = false
-                            settleDrawer(velocity)
-                        },
-                    )
-            )
-        }
+        // 左边缘保留手势排除区：从屏幕最左侧起手右滑时也不被系统返回手势抢走
+        Box(
+            Modifier
+                .align(Alignment.CenterStart)
+                .fillMaxHeight()
+                .width(24.dp)
+                .systemGestureExclusion()
+        )
 
-        // 打开态：右侧窄条点击关闭，也可左滑推回
-        if (drawerProgress > 0.99f) {
+        // 打开态：右侧留白点击关闭（左滑推回由整屏横向拖动处理）
+        if (drawerOpen) {
             Box(
                 Modifier
                     .align(Alignment.CenterEnd)
                     .fillMaxHeight()
                     .fillMaxWidth(1f - AppSpacing.drawerWidthFraction)
-                    .draggable(
-                        state = dragState,
-                        orientation = Orientation.Horizontal,
-                        onDragStarted = { keyboard?.hide() },
-                        onDragStopped = { velocity ->
-                            drawerDragging = false
-                            settleDrawer(velocity)
-                        },
-                    )
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -474,15 +473,19 @@ private fun ChatInputBar(
     val p = appPalette()
     val focusSource = remember { MutableInteractionSource() }
     val focused by focusSource.collectIsFocusedAsState()
-    val sendScale by animateFloatAsState(
-        targetValue = if (canSend) 1f else 0.6f,
-        animationSpec = tween(220, easing = AppMotion.ease),
-        label = "sendScale",
+    // 无输入时按钮保留在原位，只是去掉底色（幽灵态）
+    val sendBg by animateColorAsState(
+        targetValue = if (canSend) p.brand else Color.Transparent,
+        animationSpec = tween(AppMotion.fastMs, easing = AppMotion.ease),
+        label = "sendBg",
     )
-    val sendAlpha by animateFloatAsState(
-        targetValue = if (canSend) 1f else 0f,
-        animationSpec = tween(180),
-        label = "sendAlpha",
+    val sendTint by animateColorAsState(
+        targetValue = when {
+            canSend -> if (p.brand.luminance() > 0.6f) Color(0xFF10121A) else Color.White
+            else -> p.ink4
+        },
+        animationSpec = tween(AppMotion.fastMs, easing = AppMotion.ease),
+        label = "sendTint",
     )
 
     Column(
@@ -554,13 +557,8 @@ private fun ChatInputBar(
                     Box(
                         modifier = Modifier
                             .size(34.dp)
-                            .graphicsLayer {
-                                scaleX = sendScale
-                                scaleY = sendScale
-                                alpha = sendAlpha
-                            }
                             .clip(CircleShape)
-                            .background(p.brand)
+                            .background(sendBg)
                             .clickable(enabled = canSend, onClick = onSend),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -568,7 +566,7 @@ private fun ChatInputBar(
                             Icons.Filled.ArrowUpward,
                             contentDescription = "发送",
                             modifier = Modifier.size(20.dp),
-                            tint = if (p.brand.luminance() > 0.6f) Color(0xFF10121A) else Color.White,
+                            tint = sendTint,
                         )
                     }
                 }
