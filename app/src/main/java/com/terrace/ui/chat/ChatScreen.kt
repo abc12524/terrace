@@ -1,8 +1,8 @@
 package com.terrace.ui.chat
 
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.StartOffset
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
@@ -68,6 +69,7 @@ import com.terrace.data.model.Message
 import com.terrace.ui.theme.*
 
 
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.intellij.markdown.flavours.gfm.GFMElementTypes
 import org.intellij.markdown.flavours.gfm.GFMTokenTypes
@@ -94,8 +96,9 @@ fun ChatScreen(
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
-    val drawerProgress = remember { Animatable(0f) }
+    var drawerProgress by remember { mutableFloatStateOf(0f) }
     var drawerDragging by remember { mutableStateOf(false) }
+    var drawerAnimJob by remember { mutableStateOf<Job?>(null) }
 
     val showJumpToBottom by remember {
         derivedStateOf {
@@ -114,24 +117,40 @@ fun ChatScreen(
         val cornerPx = with(density) { 24.dp.toPx() }
         val shadowPx = with(density) { AppElevation.drawer.toPx() }
 
+        fun animateDrawerToSuspend(target: Float) {
+            animate(
+                initialValue = drawerProgress,
+                targetValue = target,
+                animationSpec = tween(AppMotion.drawerMs, easing = AppMotion.ease),
+            ) { value, _ -> drawerProgress = value }
+        }
+
+        fun animateDrawerTo(target: Float) {
+            drawerAnimJob?.cancel()
+            drawerAnimJob = scope.launch { animateDrawerToSuspend(target) }
+        }
+
+        fun closeDrawerThen(action: () -> Unit) {
+            drawerAnimJob?.cancel()
+            drawerAnimJob = scope.launch {
+                animateDrawerToSuspend(0f)
+                action()
+            }
+        }
+
         fun settleDrawer(velocity: Float) {
             val target = when {
                 velocity > 350f -> 1f
                 velocity < -350f -> 0f
-                drawerProgress.value >= 0.5f -> 1f
+                drawerProgress >= 0.5f -> 1f
                 else -> 0f
             }
-            scope.launch {
-                drawerProgress.animateTo(
-                    target,
-                    tween(AppMotion.drawerMs, easing = AppMotion.ease),
-                )
-            }
+            animateDrawerTo(target)
         }
 
         val dragState = rememberDraggableState { delta ->
-            val next = (drawerProgress.value + delta / drawerWidthPx).coerceIn(0f, 1f)
-            scope.launch { drawerProgress.snapTo(next) }
+            drawerAnimJob?.cancel()
+            drawerProgress = (drawerProgress + delta / drawerWidthPx).coerceIn(0f, 1f)
         }
 
         // 会话面板：常驻在底层，随主界面位移露出
@@ -139,22 +158,13 @@ fun ChatScreen(
             sessions = state.allSessions,
             currentId = viewModel.getSessionId(),
             onSelect = {
-                scope.launch {
-                    drawerProgress.animateTo(0f, tween(AppMotion.drawerMs, easing = AppMotion.ease))
-                }
-                viewModel.switchToSession(it)
+                closeDrawerThen { viewModel.switchToSession(it) }
             },
             onSettings = {
-                scope.launch {
-                    drawerProgress.animateTo(0f, tween(AppMotion.drawerMs, easing = AppMotion.ease))
-                    onNavigateToSettings()
-                }
+                closeDrawerThen(onNavigateToSettings)
             },
             onOpenSessionsPage = {
-                scope.launch {
-                    drawerProgress.animateTo(0f, tween(AppMotion.drawerMs, easing = AppMotion.ease))
-                    onNavigateToSessions()
-                }
+                closeDrawerThen(onNavigateToSessions)
             },
             modifier = Modifier.width(drawerWidthDp).fillMaxHeight(),
         )
@@ -164,10 +174,10 @@ fun ChatScreen(
             Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    translationX = drawerWidthPx * drawerProgress.value
-                    shape = RoundedCornerShape(cornerPx * drawerProgress.value)
-                    clip = drawerProgress.value > 0.001f
-                    shadowElevation = shadowPx * drawerProgress.value
+                    translationX = drawerWidthPx * drawerProgress
+                    shape = RoundedCornerShape(cornerPx * drawerProgress)
+                    clip = drawerProgress > 0.001f
+                    shadowElevation = shadowPx * drawerProgress
                     ambientShadowColor = Color.Black.copy(alpha = 0.32f)
                     spotShadowColor = Color.Black.copy(alpha = 0.32f)
                 }
@@ -181,11 +191,7 @@ fun ChatScreen(
                         onMenu = {
                             keyboard?.hide()
                             haptics(HapticsType.Light)
-                            scope.launch {
-                                drawerProgress.animateTo(
-                                    1f, tween(AppMotion.drawerMs, easing = AppMotion.ease)
-                                )
-                            }
+                            animateDrawerTo(1f)
                         },
                         onNew = {
                             viewModel.startNewSession()
@@ -247,16 +253,18 @@ fun ChatScreen(
         }
 
         // 关闭态：屏幕左边缘可右滑拉出抽屉
-        if (drawerProgress.value < 0.01f || drawerDragging) {
+        if (drawerProgress < 0.01f || drawerDragging) {
             Box(
                 Modifier
                     .align(Alignment.CenterStart)
                     .fillMaxHeight()
-                    .width(18.dp)
+                    .width(28.dp)
+                    .systemGestureExclusion()
                     .draggable(
                         state = dragState,
                         orientation = Orientation.Horizontal,
                         onDragStarted = {
+                            drawerAnimJob?.cancel()
                             drawerDragging = true
                             keyboard?.hide()
                         },
@@ -269,7 +277,7 @@ fun ChatScreen(
         }
 
         // 打开态：右侧窄条点击关闭，也可左滑推回
-        if (drawerProgress.value > 0.99f) {
+        if (drawerProgress > 0.99f) {
             Box(
                 Modifier
                     .align(Alignment.CenterEnd)
@@ -289,11 +297,7 @@ fun ChatScreen(
                         indication = null,
                     ) {
                         haptics(HapticsType.Light)
-                        scope.launch {
-                            drawerProgress.animateTo(
-                                0f, tween(AppMotion.drawerMs, easing = AppMotion.ease)
-                            )
-                        }
+                        animateDrawerTo(0f)
                     }
             )
         }
@@ -891,9 +895,6 @@ private fun SessionDrawer(
             onSelect = onSelect,
             modifier = Modifier.weight(1f),
         )
-        SessionAccountRow(
-            onSettings = onSettings,
-            onAccountClick = onOpenSessionsPage,
-        )
+        SessionAccountRow(onSettings = onSettings)
     }
 }

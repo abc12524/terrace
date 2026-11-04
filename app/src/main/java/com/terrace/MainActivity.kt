@@ -4,6 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,6 +25,7 @@ import com.terrace.ui.permission.LocalNetworkPermissionBanner
 import com.terrace.ui.permission.rememberLocalNetworkPermissionState
 import com.terrace.ui.sessions.SessionsScreen
 import com.terrace.ui.settings.SettingsScreen
+import com.terrace.ui.theme.AppMotion
 import com.terrace.ui.theme.ShellToolTheme
 
 class MainActivity : ComponentActivity() {
@@ -57,7 +60,21 @@ class MainActivity : ComponentActivity() {
                             startDestination = "chat",
                             modifier = Modifier.weight(1f)
                         ) {
-                            composable("chat") {
+                            composable(
+                                "chat",
+                                exitTransition = {
+                                    slideOutHorizontally(
+                                        animationSpec = tween(AppMotion.settingsMs, easing = AppMotion.ease),
+                                        targetOffsetX = { -it / 4 },
+                                    )
+                                },
+                                popEnterTransition = {
+                                    slideInHorizontally(
+                                        animationSpec = tween(AppMotion.settingsMs, easing = AppMotion.ease),
+                                        initialOffsetX = { -it / 4 },
+                                    )
+                                },
+                            ) {
                                 ChatScreen(
                                     sessionId = "new",
                                     onNavigateToSettings = { navController.navigate("settings") },
@@ -65,7 +82,33 @@ class MainActivity : ComponentActivity() {
                                     viewModel = chatViewModel,
                                 )
                             }
-                            composable("sessions") {
+                            composable(
+                                "sessions",
+                                enterTransition = {
+                                    slideInHorizontally(
+                                        animationSpec = tween(AppMotion.settingsMs, easing = AppMotion.ease),
+                                        initialOffsetX = { it },
+                                    )
+                                },
+                                exitTransition = {
+                                    slideOutHorizontally(
+                                        animationSpec = tween(AppMotion.settingsMs, easing = AppMotion.ease),
+                                        targetOffsetX = { -it / 4 },
+                                    )
+                                },
+                                popEnterTransition = {
+                                    slideInHorizontally(
+                                        animationSpec = tween(AppMotion.settingsMs, easing = AppMotion.ease),
+                                        initialOffsetX = { -it / 4 },
+                                    )
+                                },
+                                popExitTransition = {
+                                    slideOutHorizontally(
+                                        animationSpec = tween(AppMotion.settingsMs, easing = AppMotion.ease),
+                                        targetOffsetX = { it },
+                                    ) + fadeOut(tween(AppMotion.settingsMs))
+                                },
+                            ) {
                                 val chatState = chatViewModel.uiState
                                 SessionsScreen(
                                     sessions = chatState.allSessions,
@@ -77,7 +120,21 @@ class MainActivity : ComponentActivity() {
                                     onSettings = { navController.navigate("settings") },
                                 )
                             }
-                            composable("settings") {
+                            composable(
+                                "settings",
+                                enterTransition = {
+                                    slideInHorizontally(
+                                        animationSpec = tween(AppMotion.settingsMs, easing = AppMotion.ease),
+                                        initialOffsetX = { it },
+                                    )
+                                },
+                                popExitTransition = {
+                                    slideOutHorizontally(
+                                        animationSpec = tween(AppMotion.settingsMs, easing = AppMotion.ease),
+                                        targetOffsetX = { it },
+                                    ) + fadeOut(tween(AppMotion.settingsMs))
+                                },
+                            ) {
                                 SettingsScreen(onBack = { navController.popBackStack() })
                             }
                         }
