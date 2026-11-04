@@ -117,7 +117,7 @@ fun ChatScreen(
         val cornerPx = with(density) { 24.dp.toPx() }
         val shadowPx = with(density) { AppElevation.drawer.toPx() }
 
-        fun animateDrawerToSuspend(target: Float) {
+        suspend fun animateDrawerToSuspend(target: Float) {
             animate(
                 initialValue = drawerProgress,
                 targetValue = target,
