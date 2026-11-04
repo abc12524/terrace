@@ -1,34 +1,45 @@
 package com.terrace.ui.settings
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -40,57 +51,8 @@ import com.terrace.BuildConfig
 import com.terrace.data.AppPreferences
 import com.terrace.data.ServerProfile
 import com.terrace.data.api.ShellToolClient
-import com.terrace.ui.theme.HapticsType
-import com.terrace.ui.theme.rememberHaptics
+import com.terrace.ui.theme.*
 import kotlinx.coroutines.launch
-
-// ==================== iOS 配色 ====================
-
-private data class IosPalette(
-    val bg: Color,
-    val card: Color,
-    val text: Color,
-    val secondary: Color,
-    val groupTitle: Color,
-    val separator: Color,
-    val blue: Color,
-    val green: Color,
-    val red: Color,
-    val icon: Color,
-    val navBar: Color,
-)
-
-@Composable
-private fun rememberIosPalette(): IosPalette {
-    val dark = isSystemInDarkTheme()
-    return remember(dark) {
-        if (dark) IosPalette(
-            bg = Color(0xFF000000),
-            card = Color(0xFF1C1C1E),
-            text = Color(0xFFFFFFFF),
-            secondary = Color(0xFF8E8E93),
-            groupTitle = Color(0xFF8E8E93),
-            separator = Color(0x99545488),
-            blue = Color(0xFF0A84FF),
-            green = Color(0xFF30D158),
-            red = Color(0xFFFF453A),
-            icon = Color(0xFF5A5A5E),
-            navBar = Color(0xFF1C1C1E),
-        ) else IosPalette(
-            bg = Color(0xFFF2F2F7),
-            card = Color(0xFFFFFFFF),
-            text = Color(0xFF000000),
-            secondary = Color(0xFF8A8A8E),
-            groupTitle = Color(0xFF6D6D72),
-            separator = Color(0x4A3C3C43),
-            blue = Color(0xFF007AFF),
-            green = Color(0xFF34C759),
-            red = Color(0xFFFF3B30),
-            icon = Color(0xFFC6C6C8),
-            navBar = Color(0xFFF9F9F9),
-        )
-    }
-}
 
 // ==================== 设置页 ====================
 
@@ -98,14 +60,21 @@ private fun rememberIosPalette(): IosPalette {
 fun SettingsScreen(onBack: () -> Unit) {
     var host by remember { mutableStateOf(AppPreferences.host) }
     var port by remember { mutableStateOf(AppPreferences.port) }
-    var name by remember { mutableStateOf("") }
+    var name by remember {
+        mutableStateOf(
+            AppPreferences.servers()
+                .firstOrNull { it.key == AppPreferences.activeKey() }
+                ?.name.orEmpty()
+        )
+    }
     var testing by remember { mutableStateOf(false) }
     var testMsg by remember { mutableStateOf<String?>(null) }
     var testOk by remember { mutableStateOf(false) }
     var servers by remember { mutableStateOf(AppPreferences.servers()) }
+    var showServer by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val haptics = rememberHaptics()
-    val ios = rememberIosPalette()
+    val p = appPalette()
 
     fun save() {
         if (host.isBlank()) return
@@ -114,15 +83,16 @@ fun SettingsScreen(onBack: () -> Unit) {
         )
         host = AppPreferences.host
         port = AppPreferences.port
-        name = AppPreferences.servers().firstOrNull { it.key == AppPreferences.activeKey() }?.name.orEmpty()
+        name = AppPreferences.servers()
+            .firstOrNull { it.key == AppPreferences.activeKey() }?.name.orEmpty()
         servers = AppPreferences.servers()
     }
 
-    fun switchTo(p: ServerProfile) {
-        AppPreferences.switchTo(p)
+    fun switchTo(profile: ServerProfile) {
+        AppPreferences.switchTo(profile)
         host = AppPreferences.host
         port = AppPreferences.port
-        name = p.name
+        name = profile.name
         testMsg = null
         servers = AppPreferences.servers()
     }
@@ -140,316 +110,552 @@ fun SettingsScreen(onBack: () -> Unit) {
         }
     }
 
+    fun stepBack() {
+        if (showServer) showServer = false else onBack()
+    }
+
+    BackHandler(enabled = showServer) { showServer = false }
+
     Scaffold(
-        containerColor = ios.bg,
-        topBar = { IosNavBar(ios = ios, onBack = onBack) },
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(vertical = 22.dp),
-            verticalArrangement = Arrangement.spacedBy(34.dp),
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                IosGroup(ios = ios, title = "服务端连接") {
-                    IosFormRow(
-                        label = "名称", value = name, ios = ios, placeholder = "可选",
-                        onValueChange = { name = it; testMsg = null },
-                    )
-                    IosFormRow(
-                        label = "Host", value = host, ios = ios, placeholder = "192.168.1.10",
-                        onValueChange = { host = it; testMsg = null },
-                    )
-                    IosFormRow(
-                        label = "端口", value = port, ios = ios, placeholder = "8000",
-                        onValueChange = { v -> port = v.filter { it.isDigit() }; testMsg = null },
-                        keyboardType = KeyboardType.Number, showDivider = false,
-                    )
-                }
-                if (testMsg != null && !testing) {
-                    IosFeedback(ok = testOk, message = testMsg!!, ios = ios)
-                }
-            }
-
-            IosGroup(ios = ios) {
-                IosActionRow(
-                    text = if (testing) "测试中…" else "保存并测试",
-                    enabled = !testing && host.isNotBlank(),
-                    loading = testing,
-                    ios = ios,
-                ) { haptics(HapticsType.Light); testConnection() }
-            }
-
-            if (servers.isNotEmpty()) {
-                IosGroup(ios = ios, title = "已保存的服务端") {
-                    servers.forEachIndexed { i, p ->
-                        IosServerRow(
-                            profile = p,
-                            active = p.key == AppPreferences.activeKey(),
-                            ios = ios,
-                            showDivider = i != servers.lastIndex,
-                            onClick = { haptics(HapticsType.Light); switchTo(p) },
-                            onDelete = {
-                                haptics(HapticsType.Light)
-                                AppPreferences.removeServer(p)
-                                servers = AppPreferences.servers()
-                            },
-                        )
-                    }
-                }
-            }
-
-            IosGroup(ios = ios) {
-                IosAboutRow(ios = ios)
-            }
-
-            Spacer(Modifier.height(8.dp))
-        }
-    }
-}
-
-// ==================== 导航栏 ====================
-
-@Composable
-private fun IosNavBar(ios: IosPalette, onBack: () -> Unit) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .background(ios.navBar)
-            .statusBarsPadding()
-    ) {
-        Box(Modifier.fillMaxWidth().height(44.dp)) {
-            Row(
-                Modifier
-                    .align(Alignment.CenterStart)
-                    .clickable { onBack() }
-                    .height(44.dp)
-                    .padding(start = 8.dp, end = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowBackIos, contentDescription = "返回",
-                    tint = ios.blue, modifier = Modifier.size(17.dp),
-                )
-                Spacer(Modifier.width(3.dp))
-                Text("返回", fontSize = 17.sp, color = ios.blue)
-            }
-            Text(
-                "设置", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = ios.text,
-                modifier = Modifier.align(Alignment.Center),
-            )
-        }
-        Box(Modifier.fillMaxWidth().height(0.5.dp).background(ios.separator))
-    }
-}
-
-// ==================== 分组容器 ====================
-
-@Composable
-private fun IosGroup(
-    ios: IosPalette,
-    title: String? = null,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-        if (title != null) {
-            Text(
-                title, fontSize = 13.sp, color = ios.groupTitle,
-                modifier = Modifier.padding(start = 16.dp, bottom = 7.dp),
-            )
-        }
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(10.dp),
-            color = ios.card,
-        ) {
-            Column(content = content)
-        }
-    }
-}
-
-@Composable
-private fun IosSeparator(ios: IosPalette) {
-    Box(Modifier.fillMaxWidth().height(0.5.dp).padding(start = 16.dp).background(ios.separator))
-}
-
-// ==================== 表单行 ====================
-
-@Composable
-private fun IosFormRow(
-    label: String,
-    value: String,
-    ios: IosPalette,
-    placeholder: String,
-    onValueChange: (String) -> Unit,
-    showDivider: Boolean = true,
-    keyboardType: KeyboardType = KeyboardType.Text,
-) {
-    Column(Modifier.fillMaxWidth()) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .heightIn(min = 44.dp)
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(label, fontSize = 17.sp, color = ios.text)
-            BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
-                singleLine = true,
-                textStyle = TextStyle(fontSize = 17.sp, color = ios.text, textAlign = TextAlign.End),
-                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-                cursorBrush = SolidColor(ios.blue),
-                modifier = Modifier.weight(1f).padding(start = 12.dp),
-                decorationBox = { inner ->
-                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-                        if (value.isEmpty()) {
-                            Text(placeholder, fontSize = 17.sp, color = ios.secondary)
-                        }
-                        inner()
-                    }
+        containerColor = p.settingsBg,
+        topBar = {
+            SettingsTopBar(
+                title = if (showServer) "服务端连接" else "设置",
+                onBack = {
+                    haptics(HapticsType.Light)
+                    stepBack()
                 },
             )
+        },
+    ) { padding ->
+        AnimatedContent(
+            targetState = showServer,
+            modifier = Modifier.fillMaxSize().padding(padding),
+            transitionSpec = {
+                if (targetState) {
+                    (
+                        slideInHorizontally(
+                            animationSpec = tween(AppMotion.settingsMs, easing = AppMotion.ease)
+                        ) { it / 4 } + fadeIn(tween(AppMotion.settingsMs))
+                        ) togetherWith (
+                        slideOutHorizontally(
+                            animationSpec = tween(AppMotion.settingsMs, easing = AppMotion.ease)
+                        ) { -it / 4 } + fadeOut(tween(AppMotion.settingsMs))
+                        )
+                } else {
+                    (
+                        slideInHorizontally(
+                            animationSpec = tween(AppMotion.settingsMs, easing = AppMotion.ease)
+                        ) { -it / 4 } + fadeIn(tween(AppMotion.settingsMs))
+                        ) togetherWith (
+                        slideOutHorizontally(
+                            animationSpec = tween(AppMotion.settingsMs, easing = AppMotion.ease)
+                        ) { it / 4 } + fadeOut(tween(AppMotion.settingsMs))
+                        )
+                }
+            },
+            label = "settingsPage",
+        ) { serverPage ->
+            if (serverPage) {
+                ServerPage(
+                    name = name,
+                    host = host,
+                    port = port,
+                    testing = testing,
+                    testMsg = testMsg,
+                    testOk = testOk,
+                    onNameChange = { name = it; testMsg = null },
+                    onHostChange = { host = it; testMsg = null },
+                    onPortChange = { v -> port = v.filter { it.isDigit() }; testMsg = null },
+                    onSaveTest = { haptics(HapticsType.Light); testConnection() },
+                )
+            } else {
+                SettingsRootPage(
+                    servers = servers,
+                    host = host,
+                    port = port,
+                    onOpenServer = {
+                        haptics(HapticsType.Light)
+                        showServer = true
+                    },
+                    onSwitch = { haptics(HapticsType.Light); switchTo(it) },
+                    onDelete = {
+                        haptics(HapticsType.Light)
+                        AppPreferences.removeServer(it)
+                        servers = AppPreferences.servers()
+                    },
+                )
+            }
         }
-        if (showDivider) IosSeparator(ios)
     }
 }
 
-// ==================== 操作行 ====================
+// ==================== 顶栏 ====================
 
 @Composable
-private fun IosActionRow(
-    text: String,
-    enabled: Boolean,
-    loading: Boolean,
-    ios: IosPalette,
-    onClick: () -> Unit,
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val bg = if (pressed && enabled) ios.text.copy(alpha = 0.06f) else Color.Transparent
+private fun SettingsTopBar(title: String, onBack: () -> Unit) {
+    val p = appPalette()
     Box(
         Modifier
             .fillMaxWidth()
-            .background(bg)
-            .clickable(enabled = enabled, interactionSource = interaction, indication = null) { onClick() }
-            .heightIn(min = 46.dp),
-        contentAlignment = Alignment.Center,
+            .background(p.settingsBg)
+            .statusBarsPadding()
+            .height(56.dp)
+            .padding(horizontal = 12.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (loading) {
+        Box(
+            Modifier
+                .align(Alignment.CenterStart)
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(p.card)
+                .clickable(onClick = onBack),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "返回",
+                tint = p.ink,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        Crossfade(
+            targetState = title,
+            animationSpec = tween(AppMotion.fastMs),
+            label = "settingsTitle",
+            modifier = Modifier.align(Alignment.Center),
+        ) { text ->
+            Text(text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = p.ink)
+        }
+        Spacer(Modifier.align(Alignment.CenterEnd).width(52.dp))
+    }
+}
+
+// ==================== 根页 ====================
+
+@Composable
+private fun SettingsRootPage(
+    servers: List<ServerProfile>,
+    host: String,
+    port: String,
+    onOpenServer: () -> Unit,
+    onSwitch: (ServerProfile) -> Unit,
+    onDelete: (ServerProfile) -> Unit,
+) {
+    val p = appPalette()
+    val activeDisplay = if (host.isBlank()) "未配置" else "$host:$port"
+    val activeKey = ServerProfile.keyOf(host, port)
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp)
+    ) {
+        GroupTitle("连接")
+        SettingsGroup {
+            ConnectionRow(value = activeDisplay, onClick = onOpenServer)
+        }
+
+        GroupTitle("已保存的服务端")
+        SettingsGroup {
+            if (servers.isEmpty()) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 15.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "尚未保存服务端",
+                        fontSize = 14.sp,
+                        color = p.ink3,
+                    )
+                }
+            } else {
+                servers.forEach { profile ->
+                    ServerRow(
+                        profile = profile,
+                        active = profile.key == activeKey,
+                        onClick = { onSwitch(profile) },
+                        onDelete = { onDelete(profile) },
+                    )
+                }
+            }
+        }
+
+        GroupTitle("关于")
+        SettingsGroup {
+            AboutRow()
+        }
+
+        Footnote("对话历史仅保存在本机 SQLite\n不向服务端读取历史记录")
+    }
+}
+
+@Composable
+private fun GroupTitle(text: String) {
+    val p = appPalette()
+    Text(
+        text,
+        Modifier.padding(start = 8.dp, top = 18.dp, bottom = 8.dp),
+        fontSize = 14.sp,
+        color = p.ink3,
+    )
+}
+
+@Composable
+private fun SettingsGroup(content: @Composable ColumnScope.() -> Unit) {
+    val p = appPalette()
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(AppRadii.group)
+            .background(p.card)
+            .padding(vertical = 2.dp),
+        content = content,
+    )
+}
+
+@Composable
+private fun SettingsRowBase(
+    selected: Boolean,
+    onClick: (() -> Unit)?,
+    content: @Composable RowScope.() -> Unit,
+) {
+    val p = appPalette()
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val bg = when {
+        selected -> p.brandSoft
+        pressed && onClick != null -> p.ink.copy(alpha = 0.04f)
+        else -> Color.Transparent
+    }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(bg)
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable(interactionSource = interaction, indication = null, onClick = onClick)
+                } else Modifier
+            )
+            .padding(horizontal = 16.dp, vertical = 15.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        content = content,
+    )
+}
+
+@Composable
+private fun ConnectionRow(value: String, onClick: () -> Unit) {
+    val p = appPalette()
+    SettingsRowBase(selected = false, onClick = onClick) {
+        ServerGlyph(color = p.ink, size = 23.dp)
+        Spacer(Modifier.width(15.dp))
+        Text(
+            "服务端连接",
+            fontSize = 16.sp,
+            color = p.ink,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            value,
+            fontSize = 14.sp,
+            color = p.ink3,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.width(4.dp))
+        Chevron(p.ink3.copy(alpha = 0.6f))
+    }
+}
+
+@Composable
+private fun ServerRow(
+    profile: ServerProfile,
+    active: Boolean,
+    onClick: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val p = appPalette()
+    val tint = if (active) p.brandInk else p.ink
+    SettingsRowBase(selected = active, onClick = if (active) null else onClick) {
+        ServerGlyph(color = tint, size = 23.dp)
+        Spacer(Modifier.width(15.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                profile.name.ifBlank { profile.display },
+                fontSize = 16.sp,
+                color = tint,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                profile.display,
+                fontSize = 12.sp,
+                color = if (active) p.brandInk.copy(alpha = 0.7f) else p.ink3,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (active) {
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                Icons.Filled.Check,
+                contentDescription = "当前",
+                tint = p.brand,
+                modifier = Modifier.size(20.dp),
+            )
+        } else {
+            Box(
+                Modifier.size(30.dp).clip(CircleShape).clickable(onClick = onDelete),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Outlined.DeleteOutline,
+                    contentDescription = "删除",
+                    tint = p.ink4,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+            Chevron(p.ink3.copy(alpha = 0.6f))
+        }
+    }
+}
+
+@Composable
+private fun AboutRow() {
+    val p = appPalette()
+    SettingsRowBase(selected = false, onClick = null) {
+        Box(
+            Modifier
+                .size(40.dp)
+                .clip(AppRadii.appIcon)
+                .background(p.brand),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                "t",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (p.brand.luminance() > 0.6f) Color(0xFF10121A) else Color.White,
+            )
+        }
+        Spacer(Modifier.width(15.dp))
+        Column(Modifier.weight(1f)) {
+            Text("terrace", fontSize = 16.sp, color = p.ink)
+            Text(
+                "版本 ${BuildConfig.VERSION_NAME}",
+                fontSize = 12.sp,
+                color = p.ink3,
+            )
+        }
+    }
+}
+
+// ==================== 二级页：服务端连接 ====================
+
+@Composable
+private fun ServerPage(
+    name: String,
+    host: String,
+    port: String,
+    testing: Boolean,
+    testMsg: String?,
+    testOk: Boolean,
+    onNameChange: (String) -> Unit,
+    onHostChange: (String) -> Unit,
+    onPortChange: (String) -> Unit,
+    onSaveTest: () -> Unit,
+) {
+    val p = appPalette()
+    Column(
+        Modifier
+            .fillMaxSize()
+            .imePadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp)
+    ) {
+        GroupTitle("服务端连接")
+        SettingsGroup {
+            ServerField(
+                label = "名称",
+                value = name,
+                placeholder = "可选",
+                onValueChange = onNameChange,
+            )
+            FieldDivider()
+            ServerField(
+                label = "Host",
+                value = host,
+                placeholder = "192.168.1.10",
+                onValueChange = onHostChange,
+            )
+            FieldDivider()
+            ServerField(
+                label = "端口",
+                value = port,
+                placeholder = "8000",
+                onValueChange = onPortChange,
+                keyboardType = KeyboardType.Number,
+            )
+        }
+
+        Button(
+            onClick = onSaveTest,
+            enabled = !testing && host.isNotBlank(),
+            modifier = Modifier.fillMaxWidth().padding(top = 14.dp).height(48.dp),
+            shape = CircleShape,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = p.brand,
+                contentColor = if (p.brand.luminance() > 0.6f) Color(0xFF10121A) else Color.White,
+                disabledContainerColor = p.brand.copy(alpha = 0.45f),
+                disabledContentColor = (if (p.brand.luminance() > 0.6f) Color(0xFF10121A) else Color.White)
+                    .copy(alpha = 0.6f),
+            ),
+            contentPadding = PaddingValues(horizontal = 20.dp),
+        ) {
+            if (testing) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(16.dp),
-                    color = ios.blue,
+                    color = if (p.brand.luminance() > 0.6f) Color(0xFF10121A) else Color.White,
                     strokeWidth = 2.dp,
                 )
                 Spacer(Modifier.width(8.dp))
             }
-            Text(text, fontSize = 17.sp, color = if (enabled) ios.blue else ios.secondary)
+            Text(
+                if (testing) "测试中…" else "保存并测试",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+            )
         }
+
+        if (testMsg != null && !testing) {
+            TestNote(ok = testOk, message = testMsg)
+        }
+
+        Footnote("修改后自动保存到本机")
     }
 }
 
-// ==================== 连接反馈 ====================
-
 @Composable
-private fun IosFeedback(ok: Boolean, message: String, ios: IosPalette) {
-    val tint = if (ok) ios.green else ios.red
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            if (ok) Icons.Filled.Check else Icons.Outlined.ErrorOutline,
-            contentDescription = null,
-            tint = tint,
-            modifier = Modifier.size(14.dp),
-        )
-        Spacer(Modifier.width(5.dp))
-        Text(message, fontSize = 13.sp, color = tint)
-    }
-}
-
-// ==================== 服务端条目 ====================
-
-@Composable
-private fun IosServerRow(
-    profile: ServerProfile,
-    active: Boolean,
-    ios: IosPalette,
-    showDivider: Boolean,
-    onClick: () -> Unit,
-    onDelete: () -> Unit,
+private fun ServerField(
+    label: String,
+    value: String,
+    placeholder: String,
+    onValueChange: (String) -> Unit,
+    keyboardType: KeyboardType = KeyboardType.Text,
 ) {
+    val p = appPalette()
     val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val bg = if (pressed) ios.text.copy(alpha = 0.06f) else Color.Transparent
+    val focused by interaction.collectIsFocusedAsState()
 
-    Column(Modifier.fillMaxWidth()) {
-        Row(
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Text(label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = p.ink3)
+        Spacer(Modifier.height(6.dp))
+        Box(
             Modifier
                 .fillMaxWidth()
-                .background(bg)
-                .clickable(interactionSource = interaction, indication = null) { onClick() }
-                .padding(horizontal = 16.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .height(42.dp)
+                .clip(AppRadii.field)
+                .background(p.field.copy(alpha = 0.55f))
+                .border(
+                    width = if (focused) 1.6.dp else 1.dp,
+                    color = if (focused) p.brand else p.divider,
+                    shape = AppRadii.field,
+                )
+                .padding(horizontal = 12.dp),
+            contentAlignment = Alignment.CenterStart,
         ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    profile.name.ifBlank { profile.display },
-                    fontSize = 17.sp,
-                    fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
-                    color = ios.text,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (profile.name.isNotBlank()) {
-                    Text(
-                        profile.display, fontSize = 13.sp, color = ios.secondary,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-            if (active) {
-                Icon(Icons.Filled.Check, contentDescription = "当前", tint = ios.blue, modifier = Modifier.size(19.dp))
-                Spacer(Modifier.width(4.dp))
-            }
-            IconButton(onClick = onDelete, modifier = Modifier.size(30.dp)) {
-                Icon(
-                    Icons.Outlined.DeleteOutline, contentDescription = "删除",
-                    tint = ios.icon, modifier = Modifier.size(18.dp),
-                )
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = true,
+                textStyle = TextStyle(fontSize = 15.sp, color = p.ink),
+                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                cursorBrush = SolidColor(p.brand),
+                interactionSource = interaction,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (value.isEmpty()) {
+                Text(placeholder, fontSize = 15.sp, color = p.ink3.copy(alpha = 0.7f))
             }
         }
-        if (showDivider) IosSeparator(ios)
     }
 }
 
-// ==================== 关于 ====================
+@Composable
+private fun FieldDivider() {
+    val p = appPalette()
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(p.divider.copy(alpha = 0.6f))
+    )
+}
 
 @Composable
-private fun IosAboutRow(ios: IosPalette) {
+private fun TestNote(ok: Boolean, message: String) {
+    val p = appPalette()
+    val tint = if (ok) p.success else p.danger
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        Modifier.fillMaxWidth().padding(top = 10.dp),
+        horizontalArrangement = Arrangement.Center,
     ) {
         Box(
             Modifier
-                .size(42.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(Brush.verticalGradient(listOf(Color(0xFF4AA3FF), ios.blue))),
-            contentAlignment = Alignment.Center,
+                .clip(CircleShape)
+                .background(tint.copy(alpha = 0.12f))
+                .padding(horizontal = 12.dp, vertical = 6.dp),
         ) {
-            Text("T", fontSize = 21.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+            Text(message, fontSize = 12.sp, color = tint)
         }
-        Spacer(Modifier.width(13.dp))
-        Column {
-            Text("terrace", fontSize = 17.sp, color = ios.text)
-            Text("版本 ${BuildConfig.VERSION_NAME}", fontSize = 13.sp, color = ios.secondary)
-        }
+    }
+}
+
+@Composable
+private fun Footnote(text: String) {
+    val p = appPalette()
+    Text(
+        text,
+        modifier = Modifier.fillMaxWidth().padding(top = 28.dp, bottom = 24.dp),
+        fontSize = 12.sp,
+        lineHeight = 18.sp,
+        textAlign = TextAlign.Center,
+        color = p.ink3.copy(alpha = 0.6f),
+    )
+}
+
+// ==================== 线性图标 ====================
+
+@Composable
+private fun ServerGlyph(color: Color, size: androidx.compose.ui.unit.Dp) {
+    Canvas(Modifier.size(size)) {
+        val s = this.size.minDimension / 24f
+        val stroke = 1.7f * s
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(3 * s, 4 * s),
+            size = Size(18 * s, 12 * s),
+            cornerRadius = CornerRadius(2 * s, 2 * s),
+            style = Stroke(width = stroke),
+        )
+        drawLine(
+            color,
+            Offset(8 * s, 20 * s),
+            Offset(16 * s, 20 * s),
+            stroke,
+            StrokeCap.Round,
+        )
+    }
+}
+
+@Composable
+private fun Chevron(color: Color) {
+    Canvas(Modifier.size(17.dp)) {
+        val stroke = 2.dp.toPx()
+        val w = size.width
+        val h = size.height
+        drawLine(color, Offset(w * 0.38f, h * 0.25f), Offset(w * 0.62f, h * 0.5f), stroke, StrokeCap.Round)
+        drawLine(color, Offset(w * 0.62f, h * 0.5f), Offset(w * 0.38f, h * 0.75f), stroke, StrokeCap.Round)
     }
 }

@@ -1,21 +1,26 @@
 package com.terrace.ui.chat
 
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.StartOffset
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -23,12 +28,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,8 +41,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -57,34 +66,36 @@ import com.mikepenz.markdown.model.rememberMarkdownState
 import com.terrace.data.model.ChatSession
 import com.terrace.data.model.Message
 import com.terrace.ui.theme.*
-import java.text.SimpleDateFormat
-import java.util.*
+
+
 import kotlinx.coroutines.launch
 import org.intellij.markdown.flavours.gfm.GFMElementTypes
 import org.intellij.markdown.flavours.gfm.GFMTokenTypes
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     sessionId: String,
     onNavigateToSettings: () -> Unit,
+    onNavigateToSessions: () -> Unit = {},
     viewModel: ChatViewModel = viewModel()
 ) {
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val keyboard = LocalSoftwareKeyboardController.current
+    val density = LocalDensity.current
+    val haptics = rememberHaptics()
+    val palette = appPalette()
 
-    LaunchedEffect(sessionId) { viewModel.initSession(sessionId) }
-
-    // 打开侧边栏时收起输入法，避免键盘压住抽屉底部（如「设置」）
-    LaunchedEffect(drawerState.isOpen) {
-        if (drawerState.isOpen) keyboard?.hide()
+    // 从设置 / 会话整页返回时保留当前会话，只有首次进入才初始化
+    LaunchedEffect(sessionId) {
+        if (viewModel.getSessionId().isBlank()) viewModel.initSession(sessionId)
     }
 
     val state = viewModel.uiState
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
-    val haptics = rememberHaptics()
+
+    val drawerProgress = remember { Animatable(0f) }
+    var drawerDragging by remember { mutableStateOf(false) }
 
     val showJumpToBottom by remember {
         derivedStateOf {
@@ -94,80 +105,197 @@ fun ChatScreen(
         }
     }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState, gesturesEnabled = true,
-        drawerContent = {
-            SessionDrawer(
-                state.allSessions, viewModel.getSessionId(),
-                onSelect = { scope.launch { drawerState.close() }; viewModel.switchToSession(it) },
-                onNew = { scope.launch { drawerState.close() }; viewModel.startNewSession() },
-                onSettings = { scope.launch { drawerState.close() }; onNavigateToSettings() }
-            )
-        }
+    BoxWithConstraints(
+        Modifier.fillMaxSize().background(palette.surface)
     ) {
-        Scaffold(
-            topBar = {
-                ChatTopBar(
-                    title = state.sessionTitle,
-                    subtitle = state.model,
-                    showTitle = state.messages.isNotEmpty() || state.isLoading,
-                    onMenu = {
-                        keyboard?.hide()
-                        scope.launch { drawerState.open() }
-                        haptics(HapticsType.Light)
-                    },
-                    onNew = { viewModel.startNewSession(); haptics(HapticsType.Light) },
-                )
-            },
-            bottomBar = {
-                ChatInputBar(
-                    value = inputText,
-                    onValueChange = { inputText = it },
-                    enabled = !state.isLoading,
-                    canSend = inputText.isNotBlank() && !state.isLoading,
-                    onSend = {
-                        viewModel.sendMessage(inputText.trim())
-                        inputText = ""
-                        haptics(HapticsType.Light)
-                    },
+        val widthPx = with(density) { maxWidth.toPx() }
+        val drawerWidthPx = widthPx * AppSpacing.drawerWidthFraction
+        val drawerWidthDp = maxWidth * AppSpacing.drawerWidthFraction
+        val cornerPx = with(density) { 24.dp.toPx() }
+        val shadowPx = with(density) { AppElevation.drawer.toPx() }
+
+        fun settleDrawer(velocity: Float) {
+            val target = when {
+                velocity > 350f -> 1f
+                velocity < -350f -> 0f
+                drawerProgress.value >= 0.5f -> 1f
+                else -> 0f
+            }
+            scope.launch {
+                drawerProgress.animateTo(
+                    target,
+                    tween(AppMotion.drawerMs, easing = AppMotion.ease),
                 )
             }
-        ) { padding ->
-            Box(Modifier.fillMaxSize().padding(padding)) {
-                val displayMessages = state.messages.filter { it.role != "system" }
-                if (displayMessages.isEmpty() && !state.isLoading) {
-                    WelcomeScreen(onPick = { inputText = it })
-                } else {
-                    // 新版思考流：思维链 / 工具调用内联展示，正文单独成气泡
-                    StreamChatList(
-                        state = state,
-                        listState = listState,
-                        onRegenerate = { viewModel.regenerate(); haptics(HapticsType.Light) },
-                    )
-                }
+        }
 
-                if (showJumpToBottom) {
-                    GoToBottomButton(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = 12.dp),
-                        onClick = {
+        val dragState = rememberDraggableState { delta ->
+            val next = (drawerProgress.value + delta / drawerWidthPx).coerceIn(0f, 1f)
+            scope.launch { drawerProgress.snapTo(next) }
+        }
+
+        // 会话面板：常驻在底层，随主界面位移露出
+        SessionDrawer(
+            sessions = state.allSessions,
+            currentId = viewModel.getSessionId(),
+            onSelect = {
+                scope.launch {
+                    drawerProgress.animateTo(0f, tween(AppMotion.drawerMs, easing = AppMotion.ease))
+                }
+                viewModel.switchToSession(it)
+            },
+            onSettings = {
+                scope.launch {
+                    drawerProgress.animateTo(0f, tween(AppMotion.drawerMs, easing = AppMotion.ease))
+                    onNavigateToSettings()
+                }
+            },
+            onOpenSessionsPage = {
+                scope.launch {
+                    drawerProgress.animateTo(0f, tween(AppMotion.drawerMs, easing = AppMotion.ease))
+                    onNavigateToSessions()
+                }
+            },
+            modifier = Modifier.width(drawerWidthDp).fillMaxHeight(),
+        )
+
+        // 主界面：右移 80%、圆角与投影随进度出现
+        Box(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    translationX = drawerWidthPx * drawerProgress.value
+                    shape = RoundedCornerShape(cornerPx * drawerProgress.value)
+                    clip = drawerProgress.value > 0.001f
+                    shadowElevation = shadowPx * drawerProgress.value
+                    ambientShadowColor = Color.Black.copy(alpha = 0.32f)
+                    spotShadowColor = Color.Black.copy(alpha = 0.32f)
+                }
+        ) {
+            Scaffold(
+                containerColor = palette.surface,
+                topBar = {
+                    ChatTopBar(
+                        title = state.sessionTitle,
+                        showTitle = state.messages.isNotEmpty() || state.isLoading,
+                        onMenu = {
+                            keyboard?.hide()
+                            haptics(HapticsType.Light)
                             scope.launch {
-                                val last = (listState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0)
-                                listState.animateScrollToItem(last)
+                                drawerProgress.animateTo(
+                                    1f, tween(AppMotion.drawerMs, easing = AppMotion.ease)
+                                )
                             }
+                        },
+                        onNew = {
+                            viewModel.startNewSession()
                             haptics(HapticsType.Light)
                         },
                     )
-                }
+                },
+                bottomBar = {
+                    ChatInputBar(
+                        value = inputText,
+                        onValueChange = { inputText = it },
+                        enabled = !state.isLoading,
+                        canSend = inputText.isNotBlank() && !state.isLoading,
+                        onSend = {
+                            viewModel.sendMessage(inputText.trim())
+                            inputText = ""
+                            haptics(HapticsType.Light)
+                        },
+                    )
+                },
+            ) { padding ->
+                Box(Modifier.fillMaxSize().padding(padding)) {
+                    val displayMessages = state.messages.filter { it.role != "system" }
+                    if (displayMessages.isEmpty() && !state.isLoading) {
+                        WelcomeScreen()
+                    } else {
+                        StreamChatList(
+                            state = state,
+                            listState = listState,
+                            onRegenerate = { viewModel.regenerate(); haptics(HapticsType.Light) },
+                        )
+                    }
 
-                if (state.error != null) {
-                    Snackbar(
-                        modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
-                        action = { TextButton(onClick = { viewModel.clearError() }) { Text("关闭") } }
-                    ) { Text(state.error) }
+                    if (showJumpToBottom) {
+                        GoToBottomButton(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 12.dp),
+                            onClick = {
+                                scope.launch {
+                                    val last = (listState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0)
+                                    listState.animateScrollToItem(last)
+                                }
+                                haptics(HapticsType.Light)
+                            },
+                        )
+                    }
+
+                    if (state.error != null) {
+                        Snackbar(
+                            modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
+                            action = {
+                                TextButton(onClick = { viewModel.clearError() }) { Text("关闭") }
+                            }
+                        ) { Text(state.error) }
+                    }
                 }
             }
+        }
+
+        // 关闭态：屏幕左边缘可右滑拉出抽屉
+        if (drawerProgress.value < 0.01f || drawerDragging) {
+            Box(
+                Modifier
+                    .align(Alignment.CenterStart)
+                    .fillMaxHeight()
+                    .width(18.dp)
+                    .draggable(
+                        state = dragState,
+                        orientation = Orientation.Horizontal,
+                        onDragStarted = {
+                            drawerDragging = true
+                            keyboard?.hide()
+                        },
+                        onDragStopped = { velocity ->
+                            drawerDragging = false
+                            settleDrawer(velocity)
+                        },
+                    )
+            )
+        }
+
+        // 打开态：右侧窄条点击关闭，也可左滑推回
+        if (drawerProgress.value > 0.99f) {
+            Box(
+                Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxHeight()
+                    .fillMaxWidth(1f - AppSpacing.drawerWidthFraction)
+                    .draggable(
+                        state = dragState,
+                        orientation = Orientation.Horizontal,
+                        onDragStarted = { keyboard?.hide() },
+                        onDragStopped = { velocity ->
+                            drawerDragging = false
+                            settleDrawer(velocity)
+                        },
+                    )
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) {
+                        haptics(HapticsType.Light)
+                        scope.launch {
+                            drawerProgress.animateTo(
+                                0f, tween(AppMotion.drawerMs, easing = AppMotion.ease)
+                            )
+                        }
+                    }
+            )
         }
     }
 }
@@ -177,111 +305,155 @@ fun ChatScreen(
 @Composable
 private fun ChatTopBar(
     title: String,
-    subtitle: String,
     showTitle: Boolean,
     onMenu: () -> Unit,
     onNew: () -> Unit,
 ) {
-    val cs = MaterialTheme.colorScheme
-    Box(
+    val p = appPalette()
+    Row(
         Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = 10.dp, vertical = 8.dp)
-            .height(44.dp)
+            .height(56.dp)
+            .padding(horizontal = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(
-            onClick = onMenu,
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(cs.onSurface.copy(alpha = 0.04f))
-                .border(1.dp, cs.onSurface.copy(alpha = 0.06f), CircleShape)
+        Box(
+            Modifier.size(40.dp).clip(CircleShape).clickable(onClick = onMenu),
+            contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Default.Menu, contentDescription = "会话列表",
-                modifier = Modifier.size(20.dp), tint = cs.onSurface)
+            MenuGlyph(color = p.ink)
         }
 
         if (showTitle) {
-            Column(
-                Modifier.align(Alignment.Center).padding(horizontal = 64.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    color = cs.onSurface,
-                )
-                if (subtitle.isNotBlank()) {
-                    Text(
-                        subtitle, fontSize = 11.sp, maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        color = cs.onSurfaceVariant.copy(alpha = 0.75f),
-                    )
-                }
-            }
+            Text(
+                title,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 10.dp, end = 8.dp),
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Medium,
+                color = p.ink,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        } else {
+            Spacer(Modifier.weight(1f))
         }
 
-        IconButton(
-            onClick = onNew,
-            modifier = Modifier.align(Alignment.CenterEnd).size(40.dp)
+        Box(
+            Modifier.size(40.dp).clip(CircleShape).clickable(onClick = onNew),
+            contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Outlined.Add, contentDescription = "新对话",
-                modifier = Modifier.size(26.dp), tint = cs.onSurface)
+            PlusGlyph(color = p.ink, size = 26.dp)
         }
+    }
+}
+
+@Composable
+private fun MenuGlyph(color: Color) {
+    Canvas(Modifier.size(24.dp)) {
+        val stroke = 1.7.dp.toPx()
+        drawLine(
+            color,
+            Offset(4.dp.toPx(), 8.5.dp.toPx()),
+            Offset(21.dp.toPx(), 8.5.dp.toPx()),
+            stroke,
+            StrokeCap.Round,
+        )
+        drawLine(
+            color,
+            Offset(4.dp.toPx(), 15.dp.toPx()),
+            Offset(15.dp.toPx(), 15.dp.toPx()),
+            stroke,
+            StrokeCap.Round,
+        )
+    }
+}
+
+@Composable
+private fun PlusGlyph(color: Color, size: androidx.compose.ui.unit.Dp) {
+    Canvas(Modifier.size(size)) {
+        val stroke = 1.7.dp.toPx()
+        val c = this.size.width / 2f
+        val r = 8.dp.toPx()
+        drawLine(color, Offset(c, c - r), Offset(c, c + r), stroke, StrokeCap.Round)
+        drawLine(color, Offset(c - r, c), Offset(c + r, c), stroke, StrokeCap.Round)
     }
 }
 
 // ==================== 欢迎页 ====================
 
-private val welcomeSuggestions = listOf(
-    "列出当前目录下的文件",
-    "看看系统资源占用情况",
-    "帮我搜索并总结一个话题",
-)
-
 @Composable
-private fun WelcomeScreen(onPick: (String) -> Unit) {
-    val cs = MaterialTheme.colorScheme
+private fun WelcomeScreen() {
+    val p = appPalette()
     Column(
         Modifier.fillMaxSize().padding(horizontal = 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         Box(
-            Modifier.size(56.dp).clip(RoundedCornerShape(18.dp)).background(cs.primary),
+            Modifier
+                .size(64.dp)
+                .clip(AppRadii.welcomeLogo)
+                .background(
+                    Brush.linearGradient(
+                        listOf(Color(0xFF5B84FF), Color(0xFF3358F0), Color(0xFF2C4BE0))
+                    )
+                ),
             contentAlignment = Alignment.Center,
         ) {
-            Text("T", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = cs.onPrimary)
+            WhaleLogo(color = Color.White)
         }
-        Spacer(Modifier.height(18.dp))
-        Text("有什么想聊的？", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = cs.onSurface)
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(24.dp))
         Text(
-            "通过 shell-tool 服务执行命令、搜索与记忆",
-            fontSize = 14.sp, color = cs.onSurfaceVariant.copy(alpha = 0.85f),
+            "你好，让我们开始聊天吧",
+            fontSize = 19.sp,
+            color = p.ink,
         )
-        Spacer(Modifier.height(30.dp))
-        welcomeSuggestions.forEach { suggestion ->
-            Surface(
-                onClick = { onPick(suggestion) },
-                modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
-                shape = AppRadii.card,
-                color = cs.surfaceVariant.copy(alpha = 0.45f),
-                border = BorderStroke(1.dp, cs.outlineVariant.copy(alpha = 0.25f)),
-            ) {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(suggestion, fontSize = 14.sp, color = cs.onSurface,
-                        modifier = Modifier.weight(1f))
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null,
-                        tint = cs.onSurface.copy(alpha = 0.3f), modifier = Modifier.size(18.dp))
-                }
-            }
+    }
+}
+
+@Composable
+private fun WhaleLogo(color: Color) {
+    Canvas(Modifier.size(34.dp)) {
+        val s = size.minDimension / 24f
+        val body = androidx.compose.ui.graphics.Path().apply {
+            moveTo(4 * s, 15 * s)
+            cubicTo(7.5f * s, 17.5f * s, 12.5f * s, 17f * s, 15f * s, 13.5f * s)
+            cubicTo(16.6f * s, 11.3f * s, 16.8f * s, 8.5f * s, 15.4f * s, 6.3f * s)
+            cubicTo(14f * s, 4.1f * s, 11.4f * s, 3.1f * s, 9f * s, 3.7f * s)
         }
+        drawPath(
+            body, color,
+            style = androidx.compose.ui.graphics.drawscope.Stroke(
+                width = 1.7f * s, cap = StrokeCap.Round,
+                join = androidx.compose.ui.graphics.StrokeJoin.Round,
+            )
+        )
+        val tail = androidx.compose.ui.graphics.Path().apply {
+            moveTo(4 * s, 15 * s)
+            cubicTo(3.3f * s, 17f * s, 4.2f * s, 19.3f * s, 6.2f * s, 20 * s)
+        }
+        drawPath(
+            tail, color,
+            style = androidx.compose.ui.graphics.drawscope.Stroke(
+                width = 1.7f * s, cap = StrokeCap.Round,
+                join = androidx.compose.ui.graphics.StrokeJoin.Round,
+            )
+        )
+        val fin = androidx.compose.ui.graphics.Path().apply {
+            moveTo(15 * s, 13.5f * s)
+            cubicTo(16.4f * s, 14 * s, 17.8f * s, 15.1f * s, 18.4f * s, 16.6f * s)
+        }
+        drawPath(
+            fin, color,
+            style = androidx.compose.ui.graphics.drawscope.Stroke(
+                width = 1.7f * s, cap = StrokeCap.Round,
+                join = androidx.compose.ui.graphics.StrokeJoin.Round,
+            )
+        )
+        drawCircle(color, radius = 0.9f * s, center = Offset(9.2f * s, 8.4f * s))
     }
 }
 
@@ -295,79 +467,132 @@ private fun ChatInputBar(
     canSend: Boolean,
     onSend: () -> Unit,
 ) {
-    val cs = MaterialTheme.colorScheme
+    val p = appPalette()
+    val focusSource = remember { MutableInteractionSource() }
+    val focused by focusSource.collectIsFocusedAsState()
+    val sendScale by animateFloatAsState(
+        targetValue = if (canSend) 1f else 0.6f,
+        animationSpec = tween(220, easing = AppMotion.ease),
+        label = "sendScale",
+    )
+    val sendAlpha by animateFloatAsState(
+        targetValue = if (canSend) 1f else 0f,
+        animationSpec = tween(180),
+        label = "sendAlpha",
+    )
+
     Column(
         Modifier
             .fillMaxWidth()
-            // 键盘弹出时把输入栏顶上去；用 union 取较大值，避免与导航栏内边距叠加
             .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 24.dp)
     ) {
         Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = cs.surface,
-            border = BorderStroke(1.dp, cs.onSurface.copy(alpha = 0.08f)),
+            shape = AppRadii.input,
+            color = p.surface,
+            border = BorderStroke(
+                1.dp,
+                if (focused) p.brand else p.divider.copy(alpha = 0.7f),
+            ),
             shadowElevation = AppElevation.soft,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Row(
-                Modifier.fillMaxWidth().padding(start = 6.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
-                verticalAlignment = Alignment.Bottom,
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 10.dp, top = 13.dp, bottom = 9.dp)
             ) {
                 Box(
-                    Modifier.weight(1f).padding(horizontal = 12.dp),
+                    Modifier.fillMaxWidth().heightIn(min = 28.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {
                     BasicTextField(
                         value = value,
                         onValueChange = onValueChange,
                         enabled = enabled,
-                        textStyle = TextStyle(fontSize = 16.sp, color = cs.onSurface),
-                        cursorBrush = SolidColor(cs.primary),
+                        interactionSource = focusSource,
+                        textStyle = TextStyle(
+                            fontSize = 16.sp,
+                            lineHeight = 22.sp,
+                            color = p.ink,
+                        ),
+                        cursorBrush = SolidColor(p.brand),
                         maxLines = 5,
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 9.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(end = 6.dp)
+                            .padding(vertical = 3.dp),
                     )
                     if (value.isEmpty()) {
-                        Text("发消息", fontSize = 16.sp,
-                            color = cs.onSurface.copy(alpha = 0.4f))
+                        Text(
+                            "发消息或按住说话",
+                            fontSize = 16.sp,
+                            color = p.ink3.copy(alpha = 0.55f),
+                            modifier = Modifier.padding(vertical = 3.dp),
+                        )
                     }
                 }
 
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (canSend) cs.primary else cs.onSurface.copy(alpha = 0.06f)
-                        )
-                        .clickable(enabled = canSend) { onSend() },
-                    contentAlignment = Alignment.Center,
+                Spacer(Modifier.height(10.dp))
+
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        Icons.Default.ArrowUpward, contentDescription = "发送",
-                        modifier = Modifier.size(22.dp),
-                        tint = if (canSend) cs.onPrimary else cs.onSurface.copy(alpha = 0.28f),
-                    )
+                    Box(
+                        Modifier.size(32.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        PlusGlyph(color = p.ink, size = 25.dp)
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .graphicsLayer {
+                                scaleX = sendScale
+                                scaleY = sendScale
+                                alpha = sendAlpha
+                            }
+                            .clip(CircleShape)
+                            .background(p.brand)
+                            .clickable(enabled = canSend, onClick = onSend),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Filled.ArrowUpward,
+                            contentDescription = "发送",
+                            modifier = Modifier.size(20.dp),
+                            tint = if (p.brand.luminance() > 0.6f) Color(0xFF10121A) else Color.White,
+                        )
+                    }
                 }
             }
         }
     }
 }
 
+
+
 @Composable
 private fun GoToBottomButton(modifier: Modifier = Modifier, onClick: () -> Unit) {
-    val cs = MaterialTheme.colorScheme
+    val p = appPalette()
     Box(
         modifier
             .size(40.dp)
             .clip(CircleShape)
-            .background(cs.surface)
-            .border(1.dp, cs.outlineVariant.copy(alpha = 0.6f), CircleShape)
+            .background(p.surface)
+            .border(1.dp, p.divider.copy(alpha = 0.8f), CircleShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "回到底部",
-            tint = cs.onSurface, modifier = Modifier.size(22.dp))
+        Icon(
+            Icons.Filled.KeyboardArrowDown,
+            contentDescription = "回到底部",
+            tint = p.ink,
+            modifier = Modifier.size(22.dp),
+        )
     }
 }
 
@@ -375,55 +600,57 @@ private fun GoToBottomButton(modifier: Modifier = Modifier, onClick: () -> Unit)
 
 @Composable
 internal fun UserBubble(msg: Message) {
-    val cs = MaterialTheme.colorScheme
-    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
+    val p = appPalette()
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
         Surface(
-            modifier = Modifier.fillMaxWidth(0.85f).wrapContentWidth(Alignment.End, unbounded = false),
-            shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp,
-                bottomStart = 18.dp, bottomEnd = 4.dp),
-            color = cs.primaryContainer,
+            modifier = Modifier.fillMaxWidth(0.86f).wrapContentWidth(Alignment.End, unbounded = false),
+            shape = AppRadii.userBubble,
+            color = p.bubble,
         ) {
             SelectionContainer {
                 Text(
                     msg.content,
-                    fontSize = 15.sp,
-                    lineHeight = 21.sp,
-                    color = cs.onPrimaryContainer,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    fontSize = 16.sp,
+                    lineHeight = 26.sp,
+                    color = p.ink,
+                    modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp),
                 )
             }
         }
-        Text(
-            fmtTime(msg.timestamp), fontSize = 10.sp,
-            color = cs.onSurfaceVariant.copy(alpha = 0.55f),
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
-        )
     }
 }
 
 @Composable
 internal fun FooterIcon(icon: ImageVector, label: String, onClick: () -> Unit) {
-    val cs = MaterialTheme.colorScheme
+    val p = appPalette()
     IconButton(onClick = onClick, modifier = Modifier.size(32.dp)) {
-        Icon(icon, contentDescription = label, modifier = Modifier.size(16.dp),
-            tint = cs.onSurfaceVariant.copy(alpha = 0.8f))
+        Icon(
+            icon, contentDescription = label, modifier = Modifier.size(16.dp),
+            tint = p.ink3.copy(alpha = 0.8f),
+        )
     }
 }
 
 @Composable
 internal fun StreamingDots() {
-    val transition = rememberInfiniteTransition(label = "streamDots")
-    val alpha = transition.animateFloat(
-        initialValue = 0.25f, targetValue = 0.9f,
-        animationSpec = infiniteRepeatable(tween(420), RepeatMode.Reverse),
-        label = "dotAlpha",
-    )
-    Row {
+    val p = appPalette()
+    Row(verticalAlignment = Alignment.CenterVertically) {
         repeat(3) { i ->
             if (i > 0) Spacer(Modifier.width(3.dp))
+            val transition = rememberInfiniteTransition(label = "streamDots$i")
+            val alpha by transition.animateFloat(
+                initialValue = 0.25f,
+                targetValue = 0.9f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(420),
+                    repeatMode = RepeatMode.Reverse,
+                    initialStartOffset = StartOffset(i * 140),
+                ),
+                label = "dotAlpha$i",
+            )
             Box(
                 Modifier.size(7.dp).clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alpha.value)),
+                    .background(p.ink2.copy(alpha = alpha)),
             )
         }
     }
@@ -432,13 +659,15 @@ internal fun StreamingDots() {
 @Composable
 internal fun BlinkingCursor(color: Color) {
     val transition = rememberInfiniteTransition(label = "cursorBlink")
-    val alpha = transition.animateFloat(
+    val alpha by transition.animateFloat(
         initialValue = 0.2f, targetValue = 1f,
         animationSpec = infiniteRepeatable(tween(500), RepeatMode.Reverse),
         label = "cursorAlpha",
     )
-    Text("▍", fontSize = 15.sp, color = color.copy(alpha = alpha.value),
-        modifier = Modifier.padding(top = 2.dp))
+    Text(
+        "▍", fontSize = 15.sp, color = color.copy(alpha = alpha),
+        modifier = Modifier.padding(top = 2.dp),
+    )
 }
 
 // ==================== Markdown 渲染 ====================
@@ -477,10 +706,10 @@ private fun chatMarkdownTypography(): MarkdownTypography {
 /** 内容自适应的 markdown 表格：外边框 + 行分隔线，列宽按单元格文本估算。 */
 @Composable
 private fun AutoSizedTable(model: MarkdownComponentModel) {
-    val cs = MaterialTheme.colorScheme
-    val line = cs.outline.copy(alpha = 0.6f)
-    val headerBg = cs.surfaceVariant.copy(alpha = 0.55f)
-    val bodyBg = cs.surfaceVariant.copy(alpha = 0.22f)
+    val p = appPalette()
+    val line = p.divider
+    val headerBg = p.field.copy(alpha = 0.7f)
+    val bodyBg = p.code
     val shape = RoundedCornerShape(10.dp)
     val src = model.content
     val style = model.typography.table
@@ -565,240 +794,106 @@ internal fun TokenFooter(
     cacheHit: Int, cacheMiss: Int, sessionOut: Int,
     totalCost: Double, family: String, balance: String, symbol: String,
 ) {
-    val cs = MaterialTheme.colorScheme
-    val muted = cs.onSurfaceVariant.copy(alpha = 0.7f)
+    val p = appPalette()
     Column(
-        Modifier.fillMaxWidth().padding(top = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+        Modifier
+            .fillMaxWidth()
+            .clip(AppRadii.card)
+            .background(p.field.copy(alpha = 0.45f))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
     ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Filled.Bolt,
+                contentDescription = null,
+                tint = p.brand,
+                modifier = Modifier.size(15.dp),
+            )
+            Spacer(Modifier.width(7.dp))
+            Text(
+                "Token 消耗 · ${family.ifBlank { "未知模型" }}",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = p.ink,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "$symbol${"%.4f".format(totalCost)}",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = p.brand,
+            )
+        }
         Box(
-            Modifier.width(36.dp).height(1.dp)
-                .background(cs.outlineVariant.copy(alpha = 0.5f))
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp, bottom = 6.dp)
+                .height(1.dp)
+                .background(p.divider.copy(alpha = 0.7f))
         )
-        Spacer(Modifier.height(10.dp))
-        Text(
-            "${family.ifBlank { "未知模型" }} · 合计 $symbol${"%.4f".format(totalCost)}",
-            fontSize = 11.sp, color = muted,
-        )
-        Spacer(Modifier.height(2.dp))
-        Text(
-            "缓存命中 ${"%,d".format(cacheHit)} · 未命中 ${"%,d".format(cacheMiss)} · 输出 ${"%,d".format(sessionOut)} tokens",
-            fontSize = 11.sp, color = muted,
-        )
+        TokenRow("输入 · 缓存命中", "${"%,d".format(cacheHit)} tokens")
+        TokenRow("输入 · 缓存未命中", "${"%,d".format(cacheMiss)} tokens")
+        TokenRow("输出", "${"%,d".format(sessionOut)} tokens")
         if (balance.isNotBlank()) {
-            Spacer(Modifier.height(2.dp))
-            Text("余额 $balance", fontSize = 11.sp, color = muted)
+            TokenRow("余额", balance)
         }
     }
 }
 
-// ==================== 侧边栏会话列表 ====================
+@Composable
+private fun TokenRow(label: String, value: String) {
+    val p = appPalette()
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 1.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            fontSize = 11.sp,
+            color = p.ink3.copy(alpha = 0.7f),
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            value,
+            style = TextStyle(
+                fontSize = 11.sp,
+                fontFeatureSettings = "tnum",
+                color = p.ink3.copy(alpha = 0.7f),
+            ),
+        )
+    }
+}
+
+// ==================== 会话面板 ====================
 
 @Composable
 private fun SessionDrawer(
-    sessions: List<ChatSession>, currentId: String,
-    onSelect: (String) -> Unit, onNew: () -> Unit, onSettings: () -> Unit
+    sessions: List<ChatSession>,
+    currentId: String,
+    onSelect: (String) -> Unit,
+    onSettings: () -> Unit,
+    onOpenSessionsPage: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    val cs = MaterialTheme.colorScheme
-    val validSessions = sessions.filter { it.messageCount > 0 }
-    val groups = groupSessions(validSessions)
-
-    ModalDrawerSheet(
-        modifier = Modifier.width(300.dp),
-        drawerContainerColor = cs.surface,
-        drawerContentColor = cs.onSurface,
+    val p = appPalette()
+    Column(
+        modifier
+            .clip(AppRadii.drawer)
+            .background(p.surface)
     ) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
-            Text("terrace",
-                fontSize = 18.sp, fontWeight = FontWeight.Bold,
-                color = cs.onSurface)
-            Text("命令行 AI 助手 · 本地历史", fontSize = 12.sp, color = cs.onSurface.copy(alpha = 0.55f))
-            Spacer(Modifier.height(14.dp))
-            NewChatPill(onClick = onNew)
-        }
-
-        HorizontalDivider(color = cs.outlineVariant.copy(alpha = 0.5f))
-
-        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(vertical = 8.dp)) {
-            groups.forEach { (label, list) ->
-                item(key = "hdr_$label") {
-                    Text(label,
-                        Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-                        fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
-                        color = cs.onSurfaceVariant.copy(alpha = 0.8f))
-                }
-                items(list, key = { it.id }) { session ->
-                    SessionTile(
-                        session = session,
-                        active = session.id == currentId,
-                        onClick = { onSelect(session.id) },
-                    )
-                }
-                item(key = "gap_$label") { Spacer(Modifier.height(6.dp)) }
-            }
-        }
-
-        HorizontalDivider(color = cs.outlineVariant.copy(alpha = 0.5f))
-        DrawerFooterRow(
-            icon = Icons.Outlined.Settings,
-            label = "设置",
-            onClick = onSettings,
+        SessionSearchBar(onClick = onOpenSessionsPage)
+        SessionListBody(
+            sessions = sessions,
+            currentId = currentId,
+            onSelect = onSelect,
+            modifier = Modifier.weight(1f),
+        )
+        SessionAccountRow(
+            onSettings = onSettings,
+            onAccountClick = onOpenSessionsPage,
         )
     }
-}
-
-@Composable
-private fun NewChatPill(onClick: () -> Unit) {
-    val cs = MaterialTheme.colorScheme
-    val haptics = rememberHaptics()
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val bg by animateColorAsState(
-        if (pressed) cs.primary.copy(alpha = 0.78f) else cs.primary,
-        label = "newChat",
-    )
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clip(AppRadii.card)
-            .background(bg)
-            .clickable(interactionSource = interaction, indication = null) {
-                haptics(HapticsType.Medium); onClick()
-            }
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(Icons.Outlined.Add, contentDescription = null, tint = cs.onPrimary)
-        Spacer(Modifier.width(8.dp))
-        Text("新对话", fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
-            color = cs.onPrimary)
-    }
-}
-
-@Composable
-private fun SessionTile(session: ChatSession, active: Boolean, onClick: () -> Unit) {
-    val cs = MaterialTheme.colorScheme
-    val haptics = rememberHaptics()
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val bg by animateColorAsState(
-        when {
-            active -> cs.primary.copy(alpha = 0.12f)
-            pressed -> cs.onSurface.copy(alpha = 0.06f)
-            else -> Color.Transparent
-        },
-        label = "sessionTile",
-    )
-    val title = if (session.title != "新对话") session.title else fmtSessionTime(session.createdAt)
-
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 2.dp)
-            .clip(AppRadii.card)
-            .background(bg)
-            .clickable(interactionSource = interaction, indication = null) {
-                haptics(HapticsType.Light); onClick()
-            }
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(title,
-                fontSize = 14.sp,
-                fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
-                color = cs.onSurface,
-                maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Spacer(Modifier.height(2.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("${session.messageCount} 条", fontSize = 11.sp,
-                    color = cs.onSurface.copy(alpha = 0.55f))
-                if (session.title != "新对话") {
-                    Text(" · ${fmtSessionTime(session.createdAt)}", fontSize = 11.sp,
-                        color = cs.onSurface.copy(alpha = 0.45f))
-                }
-            }
-        }
-        if (active) {
-            Spacer(Modifier.width(6.dp))
-            Box(Modifier.size(6.dp).clip(CircleShape).background(cs.primary))
-        }
-    }
-}
-
-@Composable
-private fun DrawerFooterRow(icon: ImageVector, label: String, onClick: () -> Unit) {
-    val cs = MaterialTheme.colorScheme
-    val haptics = rememberHaptics()
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val bg by animateColorAsState(
-        if (pressed) cs.onSurface.copy(alpha = 0.06f) else Color.Transparent,
-        label = "footer",
-    )
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .background(bg)
-            .clickable(interactionSource = interaction, indication = null) {
-                haptics(HapticsType.Light); onClick()
-            }
-            .padding(horizontal = 20.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(icon, contentDescription = null, tint = cs.onSurfaceVariant)
-        Spacer(Modifier.width(12.dp))
-        Text(label, fontSize = 15.sp, color = cs.onSurfaceVariant)
-    }
-}
-
-// ==================== 工具函数 ====================
-
-internal fun fmtTime(ms: Long) =
-    SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(ms))
-
-private fun fmtSessionTime(ms: Long): String {
-    val now = Calendar.getInstance()
-    val d = Calendar.getInstance().also { it.timeInMillis = ms }
-    return when {
-        sameDay(now, d) -> "今天 ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(ms))}"
-        isYest(now, d)  -> "昨天 ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(ms))}"
-        else -> SimpleDateFormat("MM-dd", Locale.getDefault()).format(Date(ms))
-    }
-}
-
-private fun sameDay(a: Calendar, b: Calendar) =
-    a.get(Calendar.YEAR) == b.get(Calendar.YEAR) && a.get(Calendar.DAY_OF_YEAR) == b.get(Calendar.DAY_OF_YEAR)
-
-private fun isYest(now: Calendar, d: Calendar): Boolean {
-    val y = Calendar.getInstance().also { it.timeInMillis = now.timeInMillis - 86400000L }
-    return sameDay(y, d)
-}
-
-private data class SG(val label: String, val sessions: List<ChatSession>)
-
-private fun groupSessions(all: List<ChatSession>): List<SG> {
-    val now = Calendar.getInstance()
-    val weekStart = Calendar.getInstance().also {
-        it.add(Calendar.DAY_OF_WEEK, it.firstDayOfWeek - it.get(Calendar.DAY_OF_WEEK))
-        it.set(Calendar.HOUR_OF_DAY, 0); it.set(Calendar.MINUTE, 0)
-        it.set(Calendar.SECOND, 0); it.set(Calendar.MILLISECOND, 0)
-    }
-    val t = mutableListOf<ChatSession>(); val y = mutableListOf<ChatSession>()
-    val w = mutableListOf<ChatSession>(); val e = mutableListOf<ChatSession>()
-    for (s in all.sortedByDescending { it.createdAt }) {
-        val c = Calendar.getInstance().also { it.timeInMillis = s.createdAt }
-        when {
-            sameDay(now, c) -> t.add(s)
-            isYest(now, c) -> y.add(s)
-            c.timeInMillis >= weekStart.timeInMillis -> w.add(s)
-            else -> e.add(s)
-        }
-    }
-    val r = mutableListOf<SG>()
-    if (t.isNotEmpty()) r.add(SG("今天", t))
-    if (y.isNotEmpty()) r.add(SG("昨天", y))
-    if (w.isNotEmpty()) r.add(SG("本周", w))
-    if (e.isNotEmpty()) r.add(SG("更早", e))
-    return r
 }

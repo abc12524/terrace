@@ -2,9 +2,14 @@ package com.terrace.ui.chat
 
 import android.content.ClipData
 import android.content.Context
-import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -25,11 +30,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
+
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Refresh
@@ -49,6 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -57,8 +63,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.terrace.data.model.Message
-import com.terrace.ui.theme.HapticsType
-import com.terrace.ui.theme.rememberHaptics
+import com.terrace.ui.theme.*
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -396,9 +401,14 @@ internal fun StreamChatList(
 
     LazyColumn(
         state = listState,
-        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-        contentPadding = PaddingValues(top = 10.dp, bottom = 28.dp),
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.messageGap),
+        contentPadding = PaddingValues(
+            start = AppSpacing.pageHorizontal,
+            end = AppSpacing.pageHorizontal,
+            top = AppSpacing.listTop,
+            bottom = AppSpacing.listBottom,
+        ),
     ) {
         items(
             count = streamItems.size,
@@ -411,13 +421,21 @@ internal fun StreamChatList(
                 }
             },
         ) { index ->
-            when (val it = streamItems[index]) {
-                is StreamItem.Bubble -> if (it.msg.role == "user") {
-                    UserBubble(it.msg)
-                } else {
-                    AssistantBubble(it.msg, onRegenerate)
+            Box(
+                Modifier.animateItem(
+                    fadeInSpec = tween(AppMotion.messageMs, easing = AppMotion.ease),
+                    placementSpec = null,
+                    fadeOutSpec = null,
+                )
+            ) {
+                when (val it = streamItems[index]) {
+                    is StreamItem.Bubble -> if (it.msg.role == "user") {
+                        UserBubble(it.msg)
+                    } else {
+                        AssistantBubble(it.msg, onRegenerate)
+                    }
+                    is StreamItem.Trace -> ThinkingTrace(it.steps)
                 }
-                is StreamItem.Trace -> ThinkingTrace(it.steps)
             }
         }
 
@@ -450,7 +468,6 @@ internal fun StreamChatList(
 @Composable
 private fun AssistantBubble(msg: Message, onRegenerate: () -> Unit) {
     if (msg.content.isBlank()) return
-    val cs = MaterialTheme.colorScheme
     val context = LocalContext.current
     val haptics = rememberHaptics()
 
@@ -465,50 +482,18 @@ private fun AssistantBubble(msg: Message, onRegenerate: () -> Unit) {
             }
             FooterIcon(Icons.Outlined.Refresh, "重新生成", onRegenerate)
             Spacer(Modifier.weight(1f))
-            Text(
-                fmtTime(msg.timestamp),
-                fontSize = 10.sp,
-                color = cs.onSurfaceVariant.copy(alpha = 0.45f),
-            )
         }
     }
 }
 
 /**
- * 思考流：思维链为浅灰正文（无框），工具结果为可折叠的终端 / diff 块。
+ * 思考流：思维链与工具调用按时间顺序内联，不做整体折叠。
  */
 @Composable
 internal fun ThinkingTrace(steps: List<TraceStep>) {
     if (steps.isEmpty()) return
 
-    val cs = MaterialTheme.colorScheme
-    var expanded by rememberSaveable { mutableStateOf(true) }
-    val toolCount = steps.count { it.kind == StepKind.TOOL }
-
     Column(Modifier.fillMaxWidth()) {
-        if (!expanded) {
-            Row(
-                Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable { expanded = true }
-                    .padding(vertical = 4.dp, horizontal = 2.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    if (toolCount > 0) "思考过程 · $toolCount 次工具调用" else "思考过程",
-                    fontSize = 12.sp,
-                    color = cs.onSurfaceVariant.copy(alpha = 0.7f),
-                )
-                Icon(
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = "展开",
-                    tint = cs.onSurfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier.size(14.dp),
-                )
-            }
-            return@Column
-        }
-
         // 循环内必须给每个工具块独立的 composition key，否则 rememberSaveable
         // 会生成重复 key，多步工具调用时直接抛异常闪退。
         steps.forEachIndexed { index, step ->
@@ -519,32 +504,19 @@ internal fun ThinkingTrace(steps: List<TraceStep>) {
                 }
             }
         }
-
-        if (steps.size >= 3) {
-            Text(
-                "收起思考",
-                fontSize = 11.sp,
-                color = cs.onSurfaceVariant.copy(alpha = 0.45f),
-                modifier = Modifier
-                    .align(Alignment.End)
-                    .clip(RoundedCornerShape(6.dp))
-                    .clickable { expanded = false }
-                    .padding(horizontal = 6.dp, vertical = 2.dp),
-            )
-        }
     }
 }
 
 @Composable
 private fun ThinkText(text: String) {
     if (text.isBlank()) return
-    val cs = MaterialTheme.colorScheme
+    val p = appPalette()
     SelectionContainer {
         Text(
             text = text,
             fontSize = 13.sp,
             lineHeight = 20.sp,
-            color = cs.onSurfaceVariant.copy(alpha = 0.75f),
+            color = p.ink3.copy(alpha = 0.82f),
             modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
         )
     }
@@ -552,10 +524,15 @@ private fun ThinkText(text: String) {
 
 @Composable
 private fun ToolBlock(step: TraceStep, blockKey: String) {
-    val cs = MaterialTheme.colorScheme
-    val dark = cs.surface.luminance() < 0.5f
+    val p = appPalette()
+    val dark = p.surface.luminance() < 0.5f
     var expanded by rememberSaveable(blockKey) { mutableStateOf(true) }
     var detail by remember { mutableStateOf(false) }
+    val rotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = tween(AppMotion.fastMs, easing = AppMotion.ease),
+        label = "toolChevron",
+    )
 
     Column(Modifier.fillMaxWidth().padding(top = 6.dp)) {
         Row(
@@ -572,23 +549,24 @@ private fun ToolBlock(step: TraceStep, blockKey: String) {
                 step.title,
                 fontSize = 12.5.sp,
                 fontWeight = FontWeight.Medium,
-                color = cs.onSurfaceVariant.copy(alpha = 0.85f),
+                color = p.ink3.copy(alpha = 0.88f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
             Spacer(Modifier.width(2.dp))
             Icon(
-                if (expanded) Icons.Filled.KeyboardArrowDown
-                else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                Icons.Filled.KeyboardArrowDown,
                 contentDescription = if (expanded) "收起" else "展开",
-                tint = cs.onSurfaceVariant.copy(alpha = 0.45f),
-                modifier = Modifier.size(16.dp),
+                tint = p.ink3.copy(alpha = 0.55f),
+                modifier = Modifier
+                    .size(16.dp)
+                    .graphicsLayer { rotationZ = rotation },
             )
             Text(
                 "详情",
                 fontSize = 11.sp,
-                color = cs.onSurfaceVariant.copy(alpha = 0.45f),
+                color = p.ink3.copy(alpha = 0.55f),
                 modifier = Modifier
                     .clip(RoundedCornerShape(6.dp))
                     .clickable { detail = true }
@@ -596,15 +574,22 @@ private fun ToolBlock(step: TraceStep, blockKey: String) {
             )
         }
 
-        if (expanded) {
+        AnimatedVisibility(
+            visible = expanded,
+            enter = expandVertically(
+                animationSpec = tween(AppMotion.fastMs, easing = AppMotion.ease),
+                expandFrom = Alignment.Top,
+            ) + fadeIn(tween(AppMotion.fastMs)),
+            exit = shrinkVertically(
+                animationSpec = tween(AppMotion.fastMs, easing = AppMotion.ease),
+                shrinkTowards = Alignment.Top,
+            ) + fadeOut(tween(120)),
+        ) {
             Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 2.dp)
-                    .animateContentSize(tween(180)),
-                shape = RoundedCornerShape(10.dp),
-                color = if (dark) cs.surfaceVariant.copy(alpha = 0.35f) else Color.White,
-                border = BorderStroke(1.dp, cs.outlineVariant.copy(alpha = 0.35f)),
+                modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                shape = AppRadii.toolResult,
+                color = if (dark) p.field.copy(alpha = 0.55f) else Color.White,
+                border = BorderStroke(1.dp, p.divider.copy(alpha = 0.35f)),
             ) {
                 Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
                     val edit = step.edit
@@ -635,26 +620,29 @@ private fun ToolBlock(step: TraceStep, blockKey: String) {
 
 @Composable
 private fun StatusDot(step: TraceStep) {
-    val cs = MaterialTheme.colorScheme
+    val p = appPalette()
     when {
-        step.running -> {
-            val transition = rememberInfiniteTransition(label = "toolRunning")
-            val alpha by transition.animateFloat(
-                initialValue = 0.25f,
-                targetValue = 1f,
-                animationSpec = infiniteRepeatable(tween(600), RepeatMode.Reverse),
-                label = "dotAlpha",
-            )
-            Box(Modifier.size(7.dp).clip(CircleShape).background(cs.primary.copy(alpha = alpha)))
-        }
-        step.failed -> Box(Modifier.size(7.dp).clip(CircleShape).background(cs.error))
-        else -> Unit
+        step.running -> PulsingDot(p.brand)
+        step.failed -> Box(Modifier.size(6.dp).clip(CircleShape).background(p.danger))
+        else -> Box(Modifier.size(6.dp).clip(CircleShape).background(p.success))
     }
 }
 
 @Composable
+private fun PulsingDot(color: Color) {
+    val transition = rememberInfiniteTransition(label = "toolRunning")
+    val alpha by transition.animateFloat(
+        initialValue = 0.25f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(600), RepeatMode.Reverse),
+        label = "dotAlpha",
+    )
+    Box(Modifier.size(6.dp).clip(CircleShape).background(color.copy(alpha = alpha)))
+}
+
+@Composable
 private fun TerminalView(step: TraceStep, blockKey: String) {
-    val cs = MaterialTheme.colorScheme
+    val p = appPalette()
     var full by rememberSaveable(blockKey) { mutableStateOf(false) }
     val lines = remember(step.body) { step.body.lines() }
     val limit = 26
@@ -666,9 +654,9 @@ private fun TerminalView(step: TraceStep, blockKey: String) {
                 Text(
                     "$ " + step.command,
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 12.sp,
-                    lineHeight = 18.sp,
-                    color = cs.onSurface,
+                    fontSize = 11.5.sp,
+                    lineHeight = 17.sp,
+                    color = p.brandInk,
                 )
                 Spacer(Modifier.height(8.dp))
             }
@@ -676,28 +664,30 @@ private fun TerminalView(step: TraceStep, blockKey: String) {
                 step.running && step.body.isBlank() -> Text(
                     "执行中…",
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 12.sp,
-                    color = cs.onSurfaceVariant.copy(alpha = 0.6f),
+                    fontSize = 11.5.sp,
+                    lineHeight = 17.sp,
+                    color = p.ink3.copy(alpha = 0.55f),
                 )
                 step.body.isBlank() -> Text(
                     "(无输出)",
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 12.sp,
-                    color = cs.onSurfaceVariant.copy(alpha = 0.6f),
+                    fontSize = 11.5.sp,
+                    lineHeight = 17.sp,
+                    color = p.ink3.copy(alpha = 0.55f),
                 )
                 else -> Text(
                     shown,
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 12.sp,
-                    lineHeight = 18.sp,
-                    color = cs.onSurface.copy(alpha = 0.88f),
+                    fontSize = 11.5.sp,
+                    lineHeight = 17.sp,
+                    color = p.ink3.copy(alpha = 0.9f),
                 )
             }
             if (!full && lines.size > limit) {
                 Text(
                     "展开全部（${lines.size} 行）",
                     fontSize = 11.sp,
-                    color = cs.primary.copy(alpha = 0.75f),
+                    color = p.brand.copy(alpha = 0.75f),
                     modifier = Modifier
                         .padding(top = 6.dp)
                         .clip(RoundedCornerShape(6.dp))
@@ -711,7 +701,7 @@ private fun TerminalView(step: TraceStep, blockKey: String) {
 
 @Composable
 private fun ScriptDiffView(edit: ScriptEdit, fallbackBody: String, blockKey: String) {
-    val cs = MaterialTheme.colorScheme
+    val p = appPalette()
     var full by rememberSaveable(blockKey) { mutableStateOf(false) }
     val lines = remember(edit.diff) { edit.diff.lines().filter { it.isNotBlank() } }
     val limit = 60
@@ -722,7 +712,7 @@ private fun ScriptDiffView(edit: ScriptEdit, fallbackBody: String, blockKey: Str
                 edit.file.ifBlank { "(未命名文件)" },
                 fontFamily = FontFamily.Monospace,
                 fontSize = 11.5.sp,
-                color = cs.onSurfaceVariant.copy(alpha = 0.8f),
+                color = p.ink3.copy(alpha = 0.8f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
@@ -739,10 +729,10 @@ private fun ScriptDiffView(edit: ScriptEdit, fallbackBody: String, blockKey: Str
                 Text(
                     "预览",
                     fontSize = 10.sp,
-                    color = cs.onSurfaceVariant.copy(alpha = 0.6f),
+                    color = p.ink3.copy(alpha = 0.6f),
                     modifier = Modifier
                         .clip(RoundedCornerShape(4.dp))
-                        .background(cs.surfaceVariant.copy(alpha = 0.5f))
+                        .background(p.field.copy(alpha = 0.7f))
                         .padding(horizontal = 4.dp, vertical = 1.dp),
                 )
             }
@@ -757,9 +747,9 @@ private fun ScriptDiffView(edit: ScriptEdit, fallbackBody: String, blockKey: Str
                     fallbackBody.ifBlank { "已${edit.action}" }
                 },
                 fontFamily = FontFamily.Monospace,
-                fontSize = 12.sp,
-                lineHeight = 18.sp,
-                color = cs.onSurface.copy(alpha = 0.85f),
+                fontSize = 11.5.sp,
+                lineHeight = 17.sp,
+                color = p.ink3.copy(alpha = 0.9f),
             )
         } else {
             Spacer(Modifier.height(2.dp))
@@ -774,7 +764,7 @@ private fun ScriptDiffView(edit: ScriptEdit, fallbackBody: String, blockKey: Str
                 Text(
                     "展开全部 diff（${lines.size} 行）",
                     fontSize = 11.sp,
-                    color = cs.primary.copy(alpha = 0.75f),
+                    color = p.brand.copy(alpha = 0.75f),
                     modifier = Modifier
                         .padding(top = 6.dp)
                         .clip(RoundedCornerShape(6.dp))
@@ -788,8 +778,8 @@ private fun ScriptDiffView(edit: ScriptEdit, fallbackBody: String, blockKey: Str
 
 @Composable
 private fun DiffLine(line: String) {
-    val cs = MaterialTheme.colorScheme
-    val dark = cs.surface.luminance() < 0.5f
+    val p = appPalette()
+    val dark = p.surface.luminance() < 0.5f
     val added = line.startsWith("+") && !line.startsWith("+++")
     val removed = line.startsWith("-") && !line.startsWith("---")
     val hunk = line.startsWith("@@")
@@ -799,14 +789,14 @@ private fun DiffLine(line: String) {
     val fg = when {
         added -> diffAddColor()
         removed -> diffRemoveColor()
-        meta -> cs.onSurfaceVariant.copy(alpha = 0.45f)
-        hunk -> cs.onSurfaceVariant.copy(alpha = 0.7f)
-        else -> cs.onSurface.copy(alpha = 0.82f)
+        meta -> p.ink3.copy(alpha = 0.45f)
+        hunk -> p.ink3.copy(alpha = 0.7f)
+        else -> p.ink3.copy(alpha = 0.82f)
     }
     val bg = when {
         added -> if (dark) Color(0x3381C784) else Color(0x122E7D32)
         removed -> if (dark) Color(0x33E57373) else Color(0x12C62828)
-        hunk -> cs.surfaceVariant.copy(alpha = 0.35f)
+        hunk -> p.field.copy(alpha = 0.55f)
         else -> Color.Transparent
     }
 
@@ -824,21 +814,17 @@ private fun DiffLine(line: String) {
 }
 
 @Composable
-private fun diffAddColor(): Color {
-    val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
-    return if (dark) Color(0xFF81C784) else Color(0xFF2E7D32)
-}
+private fun diffAddColor(): Color =
+    if (appPalette().surface.luminance() < 0.5f) Color(0xFF81C784) else Color(0xFF2E7D32)
 
 @Composable
-private fun diffRemoveColor(): Color {
-    val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
-    return if (dark) Color(0xFFE57373) else Color(0xFFC62828)
-}
+private fun diffRemoveColor(): Color =
+    if (appPalette().surface.luminance() < 0.5f) Color(0xFFE57373) else Color(0xFFC62828)
 
-/** 流式中的思考流：灰色推理文本 + 正文，无卡片 */
+/** 流式中的思考流：灰色推理文本 + 处理中工具行 + 正文 */
 @Composable
 internal fun StreamingTraceBlock(content: String, reasoning: String) {
-    val cs = MaterialTheme.colorScheme
+    val p = appPalette()
     Column(Modifier.fillMaxWidth()) {
         if (reasoning.isNotBlank()) {
             SelectionContainer {
@@ -846,13 +832,29 @@ internal fun StreamingTraceBlock(content: String, reasoning: String) {
                     reasoning,
                     fontSize = 13.sp,
                     lineHeight = 20.sp,
-                    color = cs.onSurfaceVariant.copy(alpha = 0.75f),
+                    color = p.ink3.copy(alpha = 0.82f),
                     maxLines = 12,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Spacer(Modifier.height(4.dp))
         }
+
+        Row(
+            Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            PulsingDot(p.brand)
+            Spacer(Modifier.width(6.dp))
+            Text(
+                "正在处理",
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.Medium,
+                color = p.ink3.copy(alpha = 0.88f),
+                modifier = Modifier.weight(1f),
+            )
+            StreamingDots()
+        }
+
         if (content.isBlank()) {
             Row(
                 Modifier.padding(vertical = 4.dp),
@@ -863,12 +865,12 @@ internal fun StreamingTraceBlock(content: String, reasoning: String) {
                 Text(
                     "正在思考…",
                     fontSize = 12.sp,
-                    color = cs.onSurfaceVariant.copy(alpha = 0.6f),
+                    color = p.ink3.copy(alpha = 0.6f),
                 )
             }
         } else {
             MarkdownBody(content)
-            BlinkingCursor(color = cs.onSurfaceVariant.copy(alpha = 0.6f))
+            BlinkingCursor(color = p.ink3.copy(alpha = 0.6f))
         }
     }
 }

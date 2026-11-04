@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.terrace.ui.theme.appPalette
 
 /**
  * 通用「完整详情」底部面板，供工具执行结果复用。
@@ -32,12 +33,12 @@ internal fun DetailSheet(
     body: String,
     onDismiss: () -> Unit,
 ) {
-    val cs = MaterialTheme.colorScheme
+    val p = appPalette()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = cs.surface,
+        containerColor = p.card,
         dragHandle = { BottomSheetDefaults.DragHandle() },
     ) {
         Column(Modifier.padding(horizontal = 16.dp)) {
@@ -45,7 +46,7 @@ internal fun DetailSheet(
                 title,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = cs.onSurface,
+                color = p.ink,
                 modifier = Modifier.padding(bottom = 12.dp),
             )
             SelectionContainer {
@@ -54,7 +55,7 @@ internal fun DetailSheet(
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
                     lineHeight = 19.sp,
-                    color = cs.onSurfaceVariant,
+                    color = p.ink3,
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 480.dp)
