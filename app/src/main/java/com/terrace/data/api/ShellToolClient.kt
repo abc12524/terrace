@@ -144,12 +144,13 @@ class ShellToolClient {
      * 带上访问验证码。
      *
      * 服务端（go-shell）配了 API_ACCESS_KEY 时，除 /health 外都必须带对，否则 401；
-     * 用 X-Access-Key 头，与 Python 客户端 dp_client.py 的 -a 一致。没配就不带。
+     * 只认标准 `Authorization: Bearer <code>`，不用 query（验证码不该进地址栏/日志），
+     * 与 Python 客户端 dp_client.py 的 ACCESS_CODE 常量一致。没配就不带。
      * 码短的（< 8 位）也照发，让服务端给明确回执，而不是客户端悄悄吞掉。
      */
     private fun Request.Builder.applyAccessCode(): Request.Builder {
         val code = AppPreferences.accessKey.trim()
-        if (code.isNotEmpty()) addHeader("X-Access-Key", code)
+        if (code.isNotEmpty()) addHeader("Authorization", "Bearer $code")
         return this
     }
 
