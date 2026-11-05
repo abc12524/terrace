@@ -119,8 +119,7 @@ class ShellToolClient {
         .flowOn(Dispatchers.IO)
 
     /** 探活 GET /health */
-    suspend fun health(): Result<String> = withContext(Dispatchers.IO) {
-        val baseUrl = AppPreferences.baseUrl()
+    suspend fun health(): Result<String> = withContext(Dispatchers.IO) {        val baseUrl = AppPreferences.baseUrl()
         if (baseUrl.isBlank()) {
             return@withContext Result.failure(Exception("请先配置服务地址"))
         }
@@ -169,6 +168,72 @@ class ShellToolClient {
             else -> "HTTP 401: $body"
         }
     }
+
+    // ---------------- 中途插话 ----------------
+
+    /** 插话结果。服务端的语义见 go-shell README 的「中途插话」。 */
+    sealed interface Interject {
+        /** 已作为 user 消息插进正在跑的那一轮（模型下一步就能看到） */
+        data class Injected(val turnId: String) : Interject
+        /** 这一轮没走到工具边界（多卡在长命令上）或已经结束，没赶上 */
+        data class NotDelivered(val status: String) : Interject
+        /** 当前没有正在跑的轮次（409） */
+        data object Idle : Interject
+        /** 服务端没有这个接口：Python 版没实现，或地址不对 */
+        data object Unsupported : Interject
+        data class Failed(val message: String) : Interject
+    }
+
+    /**
+     * POST /interject：把一句话递给正在跑的那一轮。
+     *
+     * 服务端不会立刻回 —— 它要等这轮走到工具边界（一批工具结果回来、下一次请求还没发）
+     * 才把话插进上下文，所以最长可能等 grace 秒（服务端 INTERJECT_GRACE，默认 20）。
+     *
+     * @param turnId 本轮 id（来自 SSE 的 turn 事件）；服务端按它找目标轮次
+     * @param waitSeconds >0 时覆盖服务端的等待上限
+     */
+    suspend fun interject(text: String, turnId: String?, waitSeconds: Int = 0): Interject =
+        withContext(Dispatchers.IO) {
+            val baseUrl = AppPreferences.baseUrl()
+            if (baseUrl.isBlank()) return@withContext Interject.Failed("请先配置服务地址")
+            if (text.isBlank()) return@withContext Interject.Failed("内容为空")
+
+            val payload = JsonObject().apply {
+                addProperty("id", "inj-" + System.currentTimeMillis())
+                addProperty("text", text)
+                if (!turnId.isNullOrBlank()) addProperty("turn_id", turnId)
+                if (waitSeconds > 0) addProperty("wait", waitSeconds)
+            }
+            val request = Request.Builder()
+                .url("$baseUrl/interject")
+                .addHeader("Content-Type", "application/json")
+                .applyAccessCode()
+                .post(payload.toString().toRequestBody(jsonMediaType))
+                .build()
+
+            try {
+                // 用流式客户端：它读超时无限，扛得住服务端那段"等工具边界"的静默
+                HttpClientProvider.stream.newCall(request).execute().use { response ->
+                    val body = response.body?.string().orEmpty()
+                    when (response.code) {
+                        404 -> Interject.Unsupported
+                        409 -> Interject.Idle
+                        401 -> Interject.Failed(describeHttpError(401, body))
+                        in 200..299 -> {
+                            val obj = runCatching { JsonParser.parseString(body).asJsonObject }.getOrNull()
+                            val status = obj?.get("status")?.takeIf { it.isJsonPrimitive }?.asString.orEmpty()
+                            val tid = obj?.get("turn_id")?.takeIf { it.isJsonPrimitive }?.asString.orEmpty()
+                            if (status == "injected") Interject.Injected(tid)
+                            else Interject.NotDelivered(status.ifBlank { "unknown" })
+                        }
+                        else -> Interject.Failed(describeHttpError(response.code, body))
+                    }
+                }
+            } catch (e: Exception) {
+                Interject.Failed("连接失败: ${e.message ?: e.javaClass.simpleName}")
+            }
+        }
 
     private fun parseEvent(lines: List<String>): ShellEvent? {
         val data = lines

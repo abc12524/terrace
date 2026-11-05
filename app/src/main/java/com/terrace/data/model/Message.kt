@@ -6,7 +6,7 @@ import androidx.room.PrimaryKey
 /**
  * 单条对话消息（本地镜像）。
  *
- * - role=user  用户问题
+ * - role=user  用户问题（[interjected]=true 表示这轮还在跑时中途插进去的话）
  * - role=assistant  模型回复（content 正文；reasoningContent 思考过程；toolCalls 为工具轮）
  * - role=tool  工具执行结果
  */
@@ -24,5 +24,7 @@ data class Message(
     val toolName: String? = null,
     val toolArgs: String? = null,
     val promptTokens: Int = 0,
-    val completionTokens: Int = 0
+    val completionTokens: Int = 0,
+    /** 是否为「中途插话」（只在 role=user 上有意义，用于在气泡上标一下） */
+    val interjected: Boolean = false
 )

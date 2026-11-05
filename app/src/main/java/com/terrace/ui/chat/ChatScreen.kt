@@ -226,10 +226,13 @@ fun ChatScreen(
                     ChatInputBar(
                         value = inputText,
                         onValueChange = { inputText = it },
-                        enabled = !state.isLoading,
-                        canSend = inputText.isNotBlank() && !state.isLoading,
+                        // 跑着的时候也能打字：这时候发出去就是插话
+                        enabled = true,
+                        canSend = inputText.isNotBlank() && !state.interjecting,
+                        running = state.isLoading,
+                        pendingCount = state.pendingCount,
                         onSend = {
-                            viewModel.sendMessage(inputText.trim())
+                            viewModel.submit(inputText.trim())
                             inputText = ""
                             haptics(HapticsType.Light)
                         },
@@ -263,13 +266,18 @@ fun ChatScreen(
                         )
                     }
 
-                    if (state.error != null) {
+                    val banner = state.error ?: state.notice
+                    if (banner != null) {
+                        // 插话结果也走这里：成功/已排队都给一句明确回执，用户不用猜
                         Snackbar(
                             modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
                             action = {
-                                TextButton(onClick = { viewModel.clearError() }) { Text("关闭") }
+                                TextButton(onClick = {
+                                    if (state.error != null) viewModel.clearError()
+                                    else viewModel.clearNotice()
+                                }) { Text("关闭") }
                             }
-                        ) { Text(state.error) }
+                        ) { Text(banner) }
                     }
                 }
             }
@@ -468,6 +476,8 @@ private fun ChatInputBar(
     onValueChange: (String) -> Unit,
     enabled: Boolean,
     canSend: Boolean,
+    running: Boolean,
+    pendingCount: Int,
     onSend: () -> Unit,
 ) {
     val p = appPalette()
@@ -487,6 +497,16 @@ private fun ChatInputBar(
         animationSpec = tween(AppMotion.fastMs, easing = AppMotion.ease),
         label = "sendTint",
     )
+    // 跑着的时候边框换个色，暗示「现在发出去是插话」
+    val borderColor by animateColorAsState(
+        targetValue = when {
+            focused -> p.brand
+            running -> p.brand.copy(alpha = 0.45f)
+            else -> p.divider.copy(alpha = 0.7f)
+        },
+        animationSpec = tween(AppMotion.fastMs, easing = AppMotion.ease),
+        label = "inputBorder",
+    )
 
     Column(
         Modifier
@@ -497,10 +517,7 @@ private fun ChatInputBar(
         Surface(
             shape = AppRadii.input,
             color = p.surface,
-            border = BorderStroke(
-                1.dp,
-                if (focused) p.brand else p.divider.copy(alpha = 0.7f),
-            ),
+            border = BorderStroke(1.dp, borderColor),
             shadowElevation = AppElevation.soft,
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -532,7 +549,7 @@ private fun ChatInputBar(
                     )
                     if (value.isEmpty()) {
                         Text(
-                            "发消息或按住说话",
+                            if (running) "这轮还在跑 · 发送即插话" else "发消息或按住说话",
                             fontSize = 16.sp,
                             color = p.ink3.copy(alpha = 0.55f),
                             modifier = Modifier.padding(vertical = 3.dp),
@@ -547,6 +564,15 @@ private fun ChatInputBar(
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    if (running) {
+                        // 进行中：告诉用户这句话会去哪（插进本轮，插不进就排到后面）
+                        Text(
+                            if (pendingCount > 0) "运行中 · 已排队 $pendingCount 条" else "运行中",
+                            fontSize = 12.sp,
+                            color = p.ink3,
+                            modifier = Modifier.padding(end = 10.dp),
+                        )
+                    }
                     Box(
                         Modifier.size(32.dp),
                         contentAlignment = Alignment.Center,
@@ -564,7 +590,7 @@ private fun ChatInputBar(
                     ) {
                         Icon(
                             Icons.Filled.ArrowUpward,
-                            contentDescription = "发送",
+                            contentDescription = if (running) "插话" else "发送",
                             modifier = Modifier.size(20.dp),
                             tint = sendTint,
                         )
@@ -603,20 +629,37 @@ private fun GoToBottomButton(modifier: Modifier = Modifier, onClick: () -> Unit)
 @Composable
 internal fun UserBubble(msg: Message) {
     val p = appPalette()
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-        Surface(
-            modifier = Modifier.fillMaxWidth(0.86f).wrapContentWidth(Alignment.End, unbounded = false),
-            shape = AppRadii.userBubble,
-            color = p.bubble,
-        ) {
-            SelectionContainer {
-                Text(
-                    msg.content,
-                    fontSize = 16.sp,
-                    lineHeight = 26.sp,
-                    color = p.ink,
-                    modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp),
-                )
+    Column(
+        Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.End,
+    ) {
+        if (msg.interjected) {
+            // 中途插进去的话：标一下，免得回看时分不清哪些是打断说的
+            Box(
+                Modifier
+                    .padding(end = 4.dp, bottom = 4.dp)
+                    .clip(CircleShape)
+                    .background(p.brandSoft)
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
+            ) {
+                Text("插话", fontSize = 11.sp, color = p.brandInk)
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(0.86f).wrapContentWidth(Alignment.End, unbounded = false),
+                shape = AppRadii.userBubble,
+                color = p.bubble,
+            ) {
+                SelectionContainer {
+                    Text(
+                        msg.content,
+                        fontSize = 16.sp,
+                        lineHeight = 26.sp,
+                        color = p.ink,
+                        modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp),
+                    )
+                }
             }
         }
     }

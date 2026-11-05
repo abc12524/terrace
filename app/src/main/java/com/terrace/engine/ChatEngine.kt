@@ -45,6 +45,34 @@ class ChatEngine(private val context: Context) {
         id
     }
 
+    /**
+     * 本地记一条用户消息。
+     *
+     * 中途插话走的是服务端的 /interject，服务端把它作为 user 消息塞进它自己的上下文；
+     * 本地这份历史是我们自己渲染的，所以这里补一条，用户才看得到自己刚说的话。
+     */
+    suspend fun insertUserMessage(sessionId: String, text: String, interjected: Boolean) =
+        withContext(Dispatchers.IO) {
+            val session = db.sessionDao().getSession(sessionId) ?: return@withContext
+            db.messageDao().insert(
+                Message(
+                    sessionId = sessionId,
+                    role = "user",
+                    content = text,
+                    interjected = interjected,
+                )
+            )
+            if (session.title == "新对话" && text.isNotBlank()) {
+                db.sessionDao().updateTitle(sessionId, text.take(20))
+            }
+            val count = db.messageDao().getMessagesBySessionSync(sessionId).size
+            db.sessionDao().updateStats(sessionId, System.currentTimeMillis(), count)
+        }
+
+    /** 把一句话递给正在跑的那一轮（服务端决定落点：工具边界） */
+    suspend fun interject(text: String, turnId: String?): ShellToolClient.Interject =
+        client.interject(text, turnId)
+
     suspend fun deleteSession(sessionId: String) = withContext(Dispatchers.IO) {
         db.messageDao().deleteBySession(sessionId)
         db.sessionDao().deleteById(sessionId)
@@ -59,19 +87,27 @@ class ChatEngine(private val context: Context) {
      * @param onContent 正文增量回调（用于流式 UI）
      * @param onReasoning 思考增量回调
      * @param onRoundComplete 一轮落库完成回调：UI 应清空当前流式缓冲，改由数据库消息渲染
+     * @param onTurn 本轮登记回调：turnId 用于中途插话。
+     *        服务端只在能接插话时才会发 `turn`（Python 版没有这个事件），所以收到即视为可用
+     * @param persistUserMessage 是否把这句话落成本地 user 消息。插话那条在发送时已经落过了，
+     *        轮到它作为新一轮真正发出去时要传 false，否则历史里会出现两条一样的
      */
     suspend fun sendMessage(
         sessionId: String,
         question: String,
         onContent: (String) -> Unit,
         onReasoning: (String) -> Unit,
-        onRoundComplete: () -> Unit
+        onRoundComplete: () -> Unit,
+        onTurn: (turnId: String) -> Unit = {},
+        persistUserMessage: Boolean = true
     ): Result<Unit> = withContext(Dispatchers.IO) {
         val session = db.sessionDao().getSession(sessionId)
             ?: return@withContext Result.failure(Exception("会话不存在"))
 
-        val userMsg = Message(sessionId = sessionId, role = "user", content = question)
-        db.messageDao().insert(userMsg)
+        if (persistUserMessage) {
+            val userMsg = Message(sessionId = sessionId, role = "user", content = question)
+            db.messageDao().insert(userMsg)
+        }
         if (session.title == "新对话" && question.isNotBlank()) {
             db.sessionDao().updateTitle(sessionId, question.take(20))
         }
@@ -182,6 +218,12 @@ class ChatEngine(private val context: Context) {
                         if (!session.serverStarted) {
                             db.sessionDao().setServerStarted(sessionId, true)
                         }
+                    }
+                    "turn" -> {
+                        // 本轮登记：id 是 /interject 的插话目标。
+                        // 服务端只在能接插话的版本上发这个事件，收到它就说明可以插
+                        val turnId = ev.str("id") ?: ""
+                        if (turnId.isNotBlank()) onTurn(turnId)
                     }
                     "usage" -> {
                         usage = UsageStats(
