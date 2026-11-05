@@ -77,13 +77,14 @@ class ShellToolClient {
             .url("$baseUrl/chat/stream")
             .addHeader("Content-Type", "application/json")
             .addHeader("Accept", "text/event-stream")
+            .applyAccessCode()
             .post(payload.toString().toRequestBody(jsonMediaType))
             .build()
 
         HttpClientProvider.stream.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 val body = response.body?.string().orEmpty()
-                emit(ShellEvent.error("HTTP ${response.code}: $body"))
+                emit(ShellEvent.error(describeHttpError(response.code, body)))
                 return@flow
             }
             val source = response.body?.source()
@@ -124,14 +125,47 @@ class ShellToolClient {
             return@withContext Result.failure(Exception("请先配置服务地址"))
         }
         try {
-            val request = Request.Builder().url("$baseUrl/health").get().build()
+            val request = Request.Builder()
+                .url("$baseUrl/health")
+                .applyAccessCode()
+                .get()
+                .build()
             HttpClientProvider.short.newCall(request).execute().use { response ->
                 val body = response.body?.string().orEmpty()
                 if (response.isSuccessful) Result.success(body)
-                else Result.failure(Exception("HTTP ${response.code}: $body"))
+                else Result.failure(Exception(describeHttpError(response.code, body)))
             }
         } catch (e: Exception) {
             Result.failure(Exception("连接失败: ${e.message ?: e.javaClass.simpleName}"))
+        }
+    }
+
+    /**
+     * 带上访问验证码。
+     *
+     * 服务端（go-shell）配了 API_ACCESS_KEY 时，除 /health 外都必须带对，否则 401；
+     * 用 X-Access-Key 头，与 Python 客户端 dp_client.py 的 -a 一致。没配就不带。
+     * 码短的（< 8 位）也照发，让服务端给明确回执，而不是客户端悄悄吞掉。
+     */
+    private fun Request.Builder.applyAccessCode(): Request.Builder {
+        val code = AppPreferences.accessKey.trim()
+        if (code.isNotEmpty()) addHeader("X-Access-Key", code)
+        return this
+    }
+
+    /** 把服务端错误翻成人话，尤其 401（验证码没配/配错）要能一眼看出怎么办 */
+    private fun describeHttpError(code: Int, body: String): String {
+        if (code != 401) return "HTTP $code: $body"
+        val errCode = try {
+            JsonParser.parseString(body).asJsonObject.get("code")
+                ?.takeIf { it.isJsonPrimitive }?.asString.orEmpty()
+        } catch (_: Exception) {
+            ""
+        }
+        return when (errCode) {
+            "access_code_required" -> "服务端要求访问验证码：请在设置 → 服务端连接里填入 API_ACCESS_KEY"
+            "access_code_invalid" -> "访问验证码不正确：请核对设置里的验证码与服务端 .env 的 API_ACCESS_KEY"
+            else -> "HTTP 401: $body"
         }
     }
 

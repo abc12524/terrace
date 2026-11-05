@@ -28,6 +28,19 @@ object AppPreferences {
         get() = prefs.getString("port", "8000") ?: "8000"
         set(value) = prefs.edit().putString("port", value.trim()).apply()
 
+    /**
+     * 访问验证码（服务端 .env 的 API_ACCESS_KEY，至少 8 位）。
+     *
+     * 跟当前服务端一起切换：每个服务端可能有各自的验证码，切服务器时不会拿旧码去打新服务器。
+     * 空串 = 该服务端不校验。
+     */
+    var accessKey: String
+        get() = prefs.getString("access_key", "") ?: ""
+        set(value) = prefs.edit().putString("access_key", value.trim()).apply()
+
+    /** 当前服务端是否配了验证码 */
+    fun hasAccessKey(): Boolean = accessKey.isNotBlank()
+
     /** 拼接出的服务地址，例如 http://192.168.1.10:8000 */
     fun baseUrl(): String {
         val h = host.trim().removeSuffix("/")
@@ -58,7 +71,12 @@ object AppPreferences {
 
     /** 保存（新增或更新）一个服务端，地址相同视为同一项；随后设为当前连接 */
     fun saveServer(profile: ServerProfile) {
-        val cleaned = ServerProfile(profile.name.trim(), profile.host.trim(), profile.port.trim())
+        val cleaned = ServerProfile(
+            name = profile.name.trim(),
+            host = profile.host.trim(),
+            port = profile.port.trim(),
+            accessKey = profile.code,
+        )
         if (cleaned.host.isBlank()) return
         val list = servers().toMutableList()
         val idx = list.indexOfFirst { it.key == cleaned.key }
@@ -71,9 +89,10 @@ object AppPreferences {
         persist(servers().filterNot { it.key == profile.key })
     }
 
-    /** 自由切换：把当前 host / port 指向指定服务端 */
+    /** 自由切换：把当前 host / port / 验证码指向指定服务端 */
     fun switchTo(profile: ServerProfile) {
         host = profile.host
         port = profile.port
+        accessKey = profile.code
     }
 }

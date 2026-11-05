@@ -41,8 +41,11 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -60,6 +63,7 @@ import kotlinx.coroutines.launch
 fun SettingsScreen(onBack: () -> Unit) {
     var host by remember { mutableStateOf(AppPreferences.host) }
     var port by remember { mutableStateOf(AppPreferences.port) }
+    var accessKey by remember { mutableStateOf(AppPreferences.accessKey) }
     var name by remember {
         mutableStateOf(
             AppPreferences.servers()
@@ -79,10 +83,16 @@ fun SettingsScreen(onBack: () -> Unit) {
     fun save() {
         if (host.isBlank()) return
         AppPreferences.saveServer(
-            ServerProfile(name = name.trim().ifBlank { host.trim() }, host = host, port = port)
+            ServerProfile(
+                name = name.trim().ifBlank { host.trim() },
+                host = host,
+                port = port,
+                accessKey = accessKey,
+            )
         )
         host = AppPreferences.host
         port = AppPreferences.port
+        accessKey = AppPreferences.accessKey
         name = AppPreferences.servers()
             .firstOrNull { it.key == AppPreferences.activeKey() }?.name.orEmpty()
         servers = AppPreferences.servers()
@@ -92,6 +102,7 @@ fun SettingsScreen(onBack: () -> Unit) {
         AppPreferences.switchTo(profile)
         host = AppPreferences.host
         port = AppPreferences.port
+        accessKey = AppPreferences.accessKey
         name = profile.name
         testMsg = null
         servers = AppPreferences.servers()
@@ -161,12 +172,14 @@ fun SettingsScreen(onBack: () -> Unit) {
                     name = name,
                     host = host,
                     port = port,
+                    accessKey = accessKey,
                     testing = testing,
                     testMsg = testMsg,
                     testOk = testOk,
                     onNameChange = { name = it; testMsg = null },
                     onHostChange = { host = it; testMsg = null },
                     onPortChange = { v -> port = v.filter { it.isDigit() }; testMsg = null },
+                    onAccessKeyChange = { v -> accessKey = v.trim(); testMsg = null },
                     onSaveTest = { haptics(HapticsType.Light); testConnection() },
                 )
             } else {
@@ -174,6 +187,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     servers = servers,
                     host = host,
                     port = port,
+                    hasAccessKey = accessKey.isNotBlank(),
                     onOpenServer = {
                         haptics(HapticsType.Light)
                         showServer = true
@@ -238,6 +252,7 @@ private fun SettingsRootPage(
     servers: List<ServerProfile>,
     host: String,
     port: String,
+    hasAccessKey: Boolean,
     onOpenServer: () -> Unit,
     onSwitch: (ServerProfile) -> Unit,
     onDelete: (ServerProfile) -> Unit,
@@ -254,7 +269,11 @@ private fun SettingsRootPage(
     ) {
         GroupTitle("连接")
         SettingsGroup {
-            ConnectionRow(value = activeDisplay, onClick = onOpenServer)
+            ConnectionRow(
+                value = activeDisplay,
+                hasAccessKey = hasAccessKey,
+                onClick = onOpenServer,
+            )
         }
 
         GroupTitle("已保存的服务端")
@@ -345,7 +364,7 @@ private fun SettingsRowBase(
 }
 
 @Composable
-private fun ConnectionRow(value: String, onClick: () -> Unit) {
+private fun ConnectionRow(value: String, hasAccessKey: Boolean, onClick: () -> Unit) {
     val p = appPalette()
     SettingsRowBase(selected = false, onClick = onClick) {
         ServerGlyph(color = p.ink, size = 23.dp)
@@ -354,8 +373,12 @@ private fun ConnectionRow(value: String, onClick: () -> Unit) {
             "服务端连接",
             fontSize = 16.sp,
             color = p.ink,
-            modifier = Modifier.weight(1f),
         )
+        if (hasAccessKey) {
+            Spacer(Modifier.width(8.dp))
+            CodeTag()
+        }
+        Spacer(Modifier.weight(1f))
         Text(
             value,
             fontSize = 14.sp,
@@ -365,6 +388,20 @@ private fun ConnectionRow(value: String, onClick: () -> Unit) {
         )
         Spacer(Modifier.width(4.dp))
         Chevron(p.ink3.copy(alpha = 0.6f))
+    }
+}
+
+/** 「验证码」小标签：一眼看出这个连接是带访问码的 */
+@Composable
+private fun CodeTag() {
+    val p = appPalette()
+    Box(
+        Modifier
+            .clip(CircleShape)
+            .background(p.ink.copy(alpha = 0.06f))
+            .padding(horizontal = 7.dp, vertical = 2.dp),
+    ) {
+        Text("验证码", fontSize = 11.sp, color = p.ink3)
     }
 }
 
@@ -388,13 +425,23 @@ private fun ServerRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Text(
-                profile.display,
-                fontSize = 12.sp,
-                color = if (active) p.brandInk.copy(alpha = 0.7f) else p.ink3,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    profile.display,
+                    fontSize = 12.sp,
+                    color = if (active) p.brandInk.copy(alpha = 0.7f) else p.ink3,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (profile.hasCode) {
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        "· 验证码",
+                        fontSize = 12.sp,
+                        color = if (active) p.brandInk.copy(alpha = 0.7f) else p.ink3.copy(alpha = 0.8f),
+                    )
+                }
+            }
         }
         if (active) {
             Spacer(Modifier.width(8.dp))
@@ -458,12 +505,14 @@ private fun ServerPage(
     name: String,
     host: String,
     port: String,
+    accessKey: String,
     testing: Boolean,
     testMsg: String?,
     testOk: Boolean,
     onNameChange: (String) -> Unit,
     onHostChange: (String) -> Unit,
     onPortChange: (String) -> Unit,
+    onAccessKeyChange: (String) -> Unit,
     onSaveTest: () -> Unit,
 ) {
     val p = appPalette()
@@ -497,7 +546,20 @@ private fun ServerPage(
                 onValueChange = onPortChange,
                 keyboardType = KeyboardType.Number,
             )
+            FieldDivider()
+            ServerField(
+                label = "访问验证码",
+                value = accessKey,
+                placeholder = "服务端没配就留空",
+                onValueChange = onAccessKeyChange,
+                masked = true,
+            )
         }
+
+        Footnote(
+            "验证码即服务端 .env 的 API_ACCESS_KEY（至少 8 位）\n" +
+                "留空表示该服务端不校验；每个服务端各存一份，切换时一起切换"
+        )
 
         Button(
             onClick = onSaveTest,
@@ -543,10 +605,12 @@ private fun ServerField(
     placeholder: String,
     onValueChange: (String) -> Unit,
     keyboardType: KeyboardType = KeyboardType.Text,
+    masked: Boolean = false,
 ) {
     val p = appPalette()
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    var revealed by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
         Text(label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = p.ink3)
@@ -569,14 +633,39 @@ private fun ServerField(
                 value = value,
                 onValueChange = onValueChange,
                 singleLine = true,
-                textStyle = TextStyle(fontSize = 15.sp, color = p.ink),
+                textStyle = TextStyle(
+                    fontSize = 15.sp,
+                    color = p.ink,
+                    // 验证码逐字符核对，等宽更好读
+                    fontFamily = if (masked) FontFamily.Monospace else FontFamily.Default,
+                ),
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                visualTransformation = if (masked && !revealed) {
+                    PasswordVisualTransformation()
+                } else {
+                    VisualTransformation.None
+                },
                 cursorBrush = SolidColor(p.brand),
                 interactionSource = interaction,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(if (masked && value.isNotEmpty()) Modifier.padding(end = 40.dp) else Modifier),
             )
             if (value.isEmpty()) {
                 Text(placeholder, fontSize = 15.sp, color = p.ink3.copy(alpha = 0.7f))
+            }
+            if (masked && value.isNotEmpty()) {
+                // 手机上没有物理键盘，看不清容易输错，给个显式开关
+                Text(
+                    text = if (revealed) "隐藏" else "显示",
+                    fontSize = 12.sp,
+                    color = p.ink3,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .clip(CircleShape)
+                        .clickable { revealed = !revealed }
+                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                )
             }
         }
     }

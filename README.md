@@ -9,7 +9,7 @@
 - **工具调用可视化** — 每轮工具调用/结果聚合成「工具调用」卡片，点击查看完整参数与输出
 - **本地历史** — 全部消息落本地 Room（SQLite），会话列表按「今天 / 昨天 / 本周 / 更早」分组，
   切换即秒开，**不向服务端读取历史**
-- **极简设置** — 只需填写服务端 `Host` 与 `Port`，一键保存并测试连通性
+- **极简设置** — 填写服务端 `Host` 与 `Port`（可选填访问验证码），一键保存并测试连通性
 - **新会话** — 新建对话时在服务端新开 session（等价 CLI 的 `-n`）
 
 ## 使用
@@ -22,6 +22,8 @@
    ```
 
 2. 安装 APK 后打开应用，进入 **设置**，填写运行服务的机器 IP 与端口（如 `192.168.1.10` / `8000`）。
+   若服务端启用了访问验证码（`.env` 的 `API_ACCESS_KEY`），把同一个值填进「访问验证码」；
+   留空表示服务端不校验。每个已保存的服务端各存一份，切换时一起切换。
 3. 返回对话页即可开始聊天。
 
 > 手机与服务器需在同一局域网，且服务器防火墙放行对应端口。
@@ -67,7 +69,7 @@ app/src/main/java/com/terrace/
 ├── ShellToolApp.kt              # Application：初始化配置与数据库
 ├── MainActivity.kt              # 单 Activity + Navigation（chat / settings）
 ├── data/
-│   ├── AppPreferences.kt        # host / port
+│   ├── AppPreferences.kt        # host / port / 访问验证码
 │   ├── HttpClientProvider.kt    # OkHttp 客户端（普通 / 流式）
 │   ├── api/ShellToolClient.kt   # /chat/stream SSE 客户端 + /health
 │   ├── db/                      # Room：AppDatabase / MessageDao / SessionDao
